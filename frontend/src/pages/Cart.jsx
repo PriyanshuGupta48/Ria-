@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { apiUrl, assetUrl } from '../config/api';
 
 const Cart = () => {
   const { cart, updateQuantity, removeFromCart, getCartTotal, placeOrder } = useCart();
@@ -64,7 +65,7 @@ const Cart = () => {
 
     setSendingOtp(true);
     try {
-      const response = await axios.post('http://localhost:3500/api/orders/send-otp', {
+      const response = await axios.post(apiUrl('/api/orders/send-otp'), {
         contactNumber: contactNumber.trim(),
       });
       toast.success(`OTP sent${response.data?.debugOtp ? ` (Demo OTP: ${response.data.debugOtp})` : ''}`);
@@ -83,7 +84,7 @@ const Cart = () => {
 
     setVerifyingOtp(true);
     try {
-      const response = await axios.post('http://localhost:3500/api/orders/verify-otp', {
+      const response = await axios.post(apiUrl('/api/orders/verify-otp'), {
         contactNumber: contactNumber.trim(),
         otp: otp.trim(),
       });
@@ -104,7 +105,7 @@ const Cart = () => {
 
     setLoadingQuote(true);
     try {
-      const response = await axios.post('http://localhost:3500/api/orders/quote', {
+      const response = await axios.post(apiUrl('/api/orders/quote'), {
         address,
       });
       setQuote(response.data);
@@ -149,7 +150,7 @@ const Cart = () => {
             <div key={item.product._id} className="bg-white rounded-lg shadow-md p-4 mb-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <img
-                  src={`http://localhost:3500${item.product.images?.[0] || item.product.image}`}
+                  src={assetUrl(item.product.images?.[0] || item.product.image)}
                   alt={item.product.name}
                   className="w-32 h-32 object-cover rounded-lg"
                 />

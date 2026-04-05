@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
+import { apiUrl } from '../config/api';
 
 const CartContext = createContext();
 
@@ -17,7 +18,7 @@ export const CartProvider = ({ children }) => {
       return;
     }
     try {
-      const response = await axios.get('http://localhost:3500/api/cart');
+      const response = await axios.get(apiUrl('/api/cart'));
       setCart(response.data);
     } catch (error) {
       console.error('Error fetching cart:', error);
@@ -34,7 +35,7 @@ export const CartProvider = ({ children }) => {
       return false;
     }
     try {
-      const response = await axios.post('http://localhost:3500/api/cart/add', {
+      const response = await axios.post(apiUrl('/api/cart/add'), {
         productId,
         quantity
       });
@@ -49,7 +50,7 @@ export const CartProvider = ({ children }) => {
 
   const updateQuantity = async (productId, quantity) => {
     try {
-      const response = await axios.put(`http://localhost:3500/api/cart/update/${productId}`, {
+      const response = await axios.put(apiUrl(`/api/cart/update/${productId}`), {
         quantity
       });
       setCart(response.data);
@@ -60,7 +61,7 @@ export const CartProvider = ({ children }) => {
 
   const removeFromCart = async (productId) => {
     try {
-      const response = await axios.delete(`http://localhost:3500/api/cart/remove/${productId}`);
+      const response = await axios.delete(apiUrl(`/api/cart/remove/${productId}`));
       setCart(response.data);
       toast.success('Removed from cart');
     } catch (error) {
@@ -82,7 +83,7 @@ export const CartProvider = ({ children }) => {
     }
 
     try {
-      await axios.post('http://localhost:3500/api/orders/place', checkoutPayload);
+      await axios.post(apiUrl('/api/orders/place'), checkoutPayload);
       toast.success('Order placed successfully!');
       await fetchCart();
       return true;

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ShoppingCart, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { assetUrl } from '../config/api';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
@@ -28,7 +29,7 @@ const ProductCard = ({ product }) => {
         onClick={() => navigate(`/product/${product._id}`)}
       >
         <img
-          src={`http://localhost:3500${activePhoto}`}
+          src={assetUrl(activePhoto)}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
@@ -46,7 +47,7 @@ const ProductCard = ({ product }) => {
                   index === activePhotoIndex ? 'border-rose-400' : 'border-white'
                 }`}
               >
-                <img src={`http://localhost:3500${photo}`} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
+                <img src={assetUrl(photo)} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
               </button>
             ))}
           </div>

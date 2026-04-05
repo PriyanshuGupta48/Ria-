@@ -5,6 +5,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { apiUrl, assetUrl } from '../config/api';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -54,8 +55,8 @@ const ProductDetail = () => {
     const fetchData = async () => {
       try {
         const [productRes, reviewsRes] = await Promise.all([
-          axios.get(`http://localhost:3500/api/products/${id}`),
-          axios.get(`http://localhost:3500/api/reviews/${id}`),
+          axios.get(apiUrl(`/api/products/${id}`)),
+          axios.get(apiUrl(`/api/reviews/${id}`)),
         ]);
         setProduct(productRes.data);
         setReviews(reviewsRes.data);
@@ -114,7 +115,7 @@ const ProductDetail = () => {
         reviewData.append('removeImage', 'true');
       }
 
-      const response = await axios.post('http://localhost:3500/api/reviews', reviewData, {
+      const response = await axios.post(apiUrl('/api/reviews'), reviewData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'multipart/form-data',
@@ -144,7 +145,7 @@ const ProductDetail = () => {
     if (!window.confirm('Are you sure you want to delete your review?')) return;
 
     try {
-      await axios.delete(`http://localhost:3500/api/reviews/${reviewId}`, {
+      await axios.delete(apiUrl(`/api/reviews/${reviewId}`), {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
@@ -228,7 +229,7 @@ const ProductDetail = () => {
           {/* Gallery */}
           <div className="space-y-4">
             <div className="relative bg-rose-50 rounded-lg overflow-hidden h-96 flex items-center justify-center border-2 border-rose-100">
-              <img src={`http://localhost:5000${currentImage}`} alt={product.name} className="w-full h-full object-contain" />
+              <img src={assetUrl(currentImage)} alt={product.name} className="w-full h-full object-contain" />
               {images.length > 1 && (
                 <>
                   <button
@@ -258,7 +259,7 @@ const ProductDetail = () => {
                       activePhotoIndex === idx ? 'border-rose-400' : 'border-rose-100'
                     }`}
                   >
-                    <img src={`http://localhost:5000${img}`} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                    <img src={assetUrl(img)} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -409,7 +410,7 @@ const ProductDetail = () => {
                       {(reviewImagePreview || (userReview?.image && !removeReviewImage)) && (
                         <div className="mt-3 relative">
                           <img
-                            src={reviewImagePreview || `http://localhost:5000${userReview.image}`}
+                            src={reviewImagePreview || assetUrl(userReview.image)}
                             alt="Review upload preview"
                             className="w-full h-40 object-cover rounded-lg border border-rose-200"
                           />
@@ -498,7 +499,7 @@ const ProductDetail = () => {
                     <p className="text-slate-700">{review.comment}</p>
                     {review.image && (
                       <img
-                        src={`http://localhost:5000${review.image}`}
+                        src={assetUrl(review.image)}
                         alt="User shared item"
                         className="mt-3 w-full max-w-sm h-56 object-cover rounded-lg border border-rose-100"
                       />

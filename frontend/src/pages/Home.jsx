@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ProductCard from '../components/ProductCard';
 import CategoryFilter from '../components/CategoryFilter';
+import { apiUrl } from '../config/api';
 
 const Home = () => {
   const [products, setProducts] = useState([]);
@@ -23,7 +24,7 @@ const Home = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('http://localhost:3500/api/products');
+      const response = await axios.get(apiUrl('/api/products'));
       setProducts(response.data);
       setFilteredProducts(response.data);
     } catch (error) {

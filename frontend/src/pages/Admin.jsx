@@ -19,8 +19,9 @@ import {
   IndianRupee,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiUrl } from '../config/api';
 
-const API_BASE = 'http://localhost:3500';
+const API_BASE = apiUrl();
 
 const STATUS_STYLES = {
   pending: 'bg-amber-100 text-amber-800',

@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { PackageSearch, Clock3, CheckCircle2, Truck, Home, XCircle, ArrowRight } from 'lucide-react';
+import { apiUrl, assetUrl } from '../config/api';
 
-const API_BASE = 'http://localhost:3500';
+const API_BASE = apiUrl();
 
 const STATUS_META = {
   pending: {
@@ -262,7 +263,7 @@ const Orders = () => {
                   {(order.items || []).map((item, index) => (
                     <div key={`${order._id}-${index}`} className="flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50 p-3">
                       <img
-                        src={`${API_BASE}${item.product?.images?.[0] || item.product?.image || ''}`}
+                        src={assetUrl(item.product?.images?.[0] || item.product?.image || '')}
                         alt={item.product?.name || 'Product'}
                         className="h-14 w-14 rounded-lg object-cover"
                       />
