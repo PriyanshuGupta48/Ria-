@@ -71,13 +71,20 @@ const startServer = async () => {
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.error(`Port ${PORT} is already in use. Stop the existing backend process before starting a new one.`);
-        return;
+        process.exit(1);
       }
 
       console.error('Server error:', err);
+      process.exit(1);
     });
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    console.error('MongoDB connection error:', err.message);
+    console.error('Available env vars:', {
+      MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'MISSING',
+      PORT: process.env.PORT || 'Using default 5000',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'MISSING'
+    });
+    process.exit(1);
   }
 };
 
