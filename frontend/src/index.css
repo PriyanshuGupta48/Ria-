@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-slate-800;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background:
+      radial-gradient(circle at top left, #fbcfe8 0, #fbcfe8 18%, transparent 19%),
+      radial-gradient(circle at top right, #bfdbfe 0, #bfdbfe 16%, transparent 17%),
+      radial-gradient(circle at bottom left, #fef3c7 0, #fef3c7 14%, transparent 15%),
+      linear-gradient(180deg, #fffdfc 0%, #f8fbff 100%);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-rose-300 text-slate-800 px-6 py-2 rounded-2xl hover:bg-rose-400 transition-all duration-200 font-semibold shadow-lg shadow-rose-200 border border-rose-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-slate-700 px-6 py-2 rounded-2xl hover:bg-rose-50 transition-colors duration-200 font-semibold border border-rose-100 shadow-sm;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border border-rose-100 rounded-2xl bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-transparent shadow-sm;
+  }
+  
+  .card {
+    @apply bg-white rounded-3xl shadow-lg overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-rose-100;
+  }
+
+  .app-background {
+    @apply min-h-screen;
+  }
+
+  .navbar-shell {
+    @apply bg-white text-slate-700 shadow-lg border-b border-rose-100;
+  }
+
+  .nav-link {
+    @apply text-slate-700 hover:text-rose-500 transition font-semibold;
+  }
+
+  .auth-screen {
+    @apply min-h-screen flex items-center justify-center px-4 py-12;
+    background:
+      radial-gradient(circle at top left, #fce7f3 0, #fce7f3 18%, transparent 19%),
+      radial-gradient(circle at bottom right, #dbeafe 0, #dbeafe 16%, transparent 17%),
+      linear-gradient(135deg, #fffdf9 0%, #fdf2f8 48%, #eff6ff 100%);
+  }
+
+  .auth-screen-register {
+    background:
+      radial-gradient(circle at top left, #fef9c3 0, #fef9c3 18%, transparent 19%),
+      radial-gradient(circle at bottom right, #e0e7ff 0, #e0e7ff 16%, transparent 17%),
+      linear-gradient(135deg, #fffdf8 0%, #fff1f2 50%, #eef2ff 100%);
+  }
+
+  .auth-screen-admin {
+    background:
+      radial-gradient(circle at top left, #fee2e2 0, #fee2e2 18%, transparent 19%),
+      radial-gradient(circle at bottom right, #fce7f3 0, #fce7f3 16%, transparent 17%),
+      linear-gradient(135deg, #fffdfd 0%, #fff7ed 52%, #fdf2f8 100%);
+  }
+
+  .auth-card {
+    @apply w-full max-w-md rounded-[2rem] bg-white border border-rose-100 shadow-2xl p-8 text-slate-700;
+  }
+
+  .auth-badge {
+    @apply inline-flex items-center rounded-full bg-pink-100 text-rose-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em];
+  }
+
+  .auth-badge-admin {
+    @apply bg-amber-100 text-amber-700;
+  }
+
+  .auth-title {
+    @apply mt-4 text-3xl font-black tracking-tight text-slate-800;
+  }
+
+  .auth-subtitle {
+    @apply mt-2 text-sm text-slate-700;
+  }
+
+  .auth-links {
+    @apply mt-6 text-center text-sm text-slate-700;
+  }
+
+  .auth-links a {
+    @apply text-rose-500 hover:text-rose-600 font-semibold;
+  }
+
+  .hero-panel {
+    @apply rounded-3xl p-8 md:p-10 text-slate-700 shadow-2xl border border-rose-100 flex flex-col md:flex-row md:items-end md:justify-between gap-6;
+    background:
+      linear-gradient(135deg, #ffffff 0%, #fff1f2 55%, #eff6ff 100%);
+  }
+
+  .hero-pill {
+    @apply inline-flex rounded-full bg-pink-100 text-rose-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em];
+  }
+
+  .hero-title {
+    @apply mt-4 text-4xl md:text-5xl font-black leading-tight;
+  }
+
+  .hero-text {
+    @apply mt-4 max-w-2xl text-slate-700 text-lg;
+  }
+
+  .hero-stat {
+    @apply rounded-2xl bg-white border border-rose-100 px-5 py-4 max-w-xs;
+  }
+
+  .hero-stat-number {
+    @apply text-xl font-bold text-rose-500;
+  }
+
+  .hero-stat-label {
+    @apply mt-1 text-sm text-slate-700;
+  }
+
+  .dashboard-panel {
+    @apply rounded-3xl bg-white border border-rose-100 shadow-2xl p-6 text-slate-700;
+  }
+
+  .admin-header {
+    @apply rounded-3xl bg-white border border-rose-100 shadow-xl px-6 py-5 flex items-center justify-between gap-4;
+  }
+
+  .panel-title {
+    @apply text-2xl font-bold text-slate-800 mb-2;
+  }
+
+  .panel-subtitle {
+    @apply text-sm text-slate-700 mb-4;
+  }
+}
