@@ -6,6 +6,7 @@ const { body, validationResult } = require('express-validator');
 const router = express.Router();
 
 const getRole = (user) => (user.role === 'admin' || user.isAdmin ? 'admin' : 'user');
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
 const signUser = (user) => {
   const role = getRole(user);
@@ -37,7 +38,8 @@ router.post('/register', [
   }
 
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
     
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -56,7 +58,8 @@ router.post('/register', [
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
     
     const user = await User.findOne({ email });
     if (!user) {
@@ -81,7 +84,8 @@ router.post('/login', async (req, res) => {
 // Admin Login
 router.post('/admin-login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {

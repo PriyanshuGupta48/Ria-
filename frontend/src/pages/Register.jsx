@@ -36,6 +36,10 @@ const Register = () => {
           <input
             type="email"
             required
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
             className="input-field"
             placeholder="Email address"
             value={email}

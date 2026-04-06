@@ -14,6 +14,8 @@ dotenv.config();
 
 const app = express();
 
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -28,7 +30,7 @@ app.use('/api/orders', orderRoutes);
 
 // MongoDB connection
 const seedAdminUser = async () => {
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
   const adminPassword = process.env.ADMIN_PASSWORD;
 
   if (!adminEmail || !adminPassword) {

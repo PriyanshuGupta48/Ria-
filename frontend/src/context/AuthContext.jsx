@@ -7,6 +7,8 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +26,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await axios.post(apiUrl('/api/auth/login'), {
-        email,
+        email: normalizeEmail(email),
         password
       });
       const { token, user } = response.data;
@@ -43,7 +45,7 @@ export const AuthProvider = ({ children }) => {
   const adminLogin = async (email, password) => {
     try {
       const response = await axios.post(apiUrl('/api/auth/admin-login'), {
-        email,
+        email: normalizeEmail(email),
         password
       });
       const { token, user } = response.data;
@@ -62,7 +64,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (email, password) => {
     try {
       const response = await axios.post(apiUrl('/api/auth/register'), {
-        email,
+        email: normalizeEmail(email),
         password
       });
       const { token, user } = response.data;
