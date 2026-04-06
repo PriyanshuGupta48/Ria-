@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
+import OrderDetail from './pages/OrderDetail';
 import ProductDetail from './pages/ProductDetail';
 import Login from './pages/Login';
 import AdminLogin from './pages/AdminLogin';
@@ -68,6 +69,14 @@ const AppShell = () => {
             element={
               <ProtectedRoute>
                 <Orders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-orders/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderDetail />
               </ProtectedRoute>
             }
           />

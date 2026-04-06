@@ -750,6 +750,30 @@ router.get('/my', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/my/:orderId', authMiddleware, async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.orderId, user: req.user.userId })
+      .populate('items.product', 'name image images category price');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const changed = await syncOrderTrackingFromDelhivery(order);
+    if (changed) {
+      await order.save();
+    }
+
+    const refreshedOrder = changed
+      ? await Order.findById(order._id).populate('items.product', 'name image images category price')
+      : order;
+
+    res.json(refreshedOrder);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch order details', error: error.message });
+  }
+});
+
 router.get('/admin/insights', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { start, end } = getMonthBounds();

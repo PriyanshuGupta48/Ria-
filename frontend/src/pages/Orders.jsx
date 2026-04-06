@@ -276,6 +276,13 @@ const Orders = () => {
                   ))}
                 </div>
               </div>
+
+              <div className="mt-5 flex justify-end">
+                <Link to={`/my-orders/${order._id}`} className="btn-secondary inline-flex items-center gap-2">
+                  View details
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
             </div>
           );
         })}
