@@ -25,7 +25,7 @@ const ProductCard = ({ product }) => {
   return (
     <div className="card group product-card">
       <div
-        className="relative overflow-hidden h-64 bg-rose-50 cursor-pointer"
+        className="relative overflow-hidden bg-rose-50 cursor-pointer w-full aspect-video sm:h-64"
         onClick={() => navigate(`/product/${product._id}`)}
       >
         <img
@@ -53,13 +53,13 @@ const ProductCard = ({ product }) => {
           </div>
         )}
       </div>
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         <div className="mb-2">
-          <span className="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-1 rounded-full">
+          <span className="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-1 rounded-full inline-block">
             {product.category} • {photos.length} photo{photos.length === 1 ? '' : 's'}
           </span>
         </div>
-        <h3 className="text-lg font-semibold text-slate-800 mb-2">{product.name}</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 line-clamp-2">{product.name}</h3>
         <div className="flex justify-between items-center gap-2">
           <span className="text-2xl font-bold text-slate-800">{formatCurrency(product.price)}</span>
           <div className="flex gap-2">

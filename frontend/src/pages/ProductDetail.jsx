@@ -225,10 +225,10 @@ const ProductDetail = () => {
         </button>
 
         {/* Product Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-12">
           {/* Gallery */}
-          <div className="space-y-4">
-            <div className="relative bg-rose-50 rounded-lg overflow-hidden h-96 flex items-center justify-center border-2 border-rose-100">
+          <div className="space-y-3 lg:space-y-4">
+            <div className="relative bg-rose-50 rounded-lg overflow-hidden h-64 sm:h-80 lg:h-96 flex items-center justify-center border-2 border-rose-100">
               <img src={assetUrl(currentImage)} alt={product.name} className="w-full h-full object-contain" />
               {images.length > 1 && (
                 <>
@@ -267,9 +267,9 @@ const ProductDetail = () => {
           </div>
 
           {/* Product Info */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-5 lg:space-y-6">
             <div>
-              <h1 className="text-4xl font-bold text-slate-700 mb-2">{product.name}</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-700 mb-2">{product.name}</h1>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
@@ -287,20 +287,20 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <div className="border-t-2 border-b-2 border-rose-100 py-4 space-y-2">
-              <p className="text-slate-600">Price</p>
-              <p className="text-3xl font-bold text-rose-500">{formatCurrency(product.price)}</p>
-              <p className="text-sm text-slate-500">Category: {product.category}</p>
+            <div className="border-t-2 border-b-2 border-rose-100 py-3 sm:py-4 space-y-2">
+              <p className="text-slate-600 text-sm sm:text-base">Price</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-rose-500">{formatCurrency(product.price)}</p>
+              <p className="text-xs sm:text-sm text-slate-500">Category: {product.category}</p>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-slate-700 mb-2">Description</h3>
-              <p className="text-slate-600 leading-relaxed">{product.description}</p>
+              <h3 className="text-base sm:text-lg lg:text-lg font-semibold text-slate-700 mb-2">Description</h3>
+              <p className="text-slate-600 leading-relaxed text-sm sm:text-base">{product.description}</p>
             </div>
 
             {detailRows.length > 0 && (
-              <div className="bg-white border-2 border-rose-100 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-slate-700 mb-3">Item Details</h3>
+              <div className="bg-white border-2 border-rose-100 rounded-lg p-3 sm:p-4">
+                <h3 className="text-base sm:text-lg lg:text-lg font-semibold text-slate-700 mb-3">Item Details</h3>
                 <div className="space-y-2">
                   {detailRows.map((row) => (
                     <div key={row.label} className="flex items-start justify-between gap-4 border-b border-rose-50 pb-2 last:border-0 last:pb-0">
@@ -313,20 +313,20 @@ const ProductDetail = () => {
             )}
 
             {/* Add to Cart Section */}
-            <div className="space-y-4 bg-rose-50 p-6 rounded-lg border-2 border-rose-100">
-              <div className="flex items-center gap-4">
-                <label className="text-slate-700 font-semibold">Quantity:</label>
-                <div className="flex items-center gap-3 border-2 border-rose-200 rounded-lg">
+            <div className="space-y-3 sm:space-y-4 bg-rose-50 p-4 sm:p-5 lg:p-6 rounded-lg border-2 border-rose-100">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-slate-700 font-semibold text-sm sm:text-base">Quantity:</label>
+                <div className="flex items-center gap-2 sm:gap-3 border-2 border-rose-200 rounded-lg w-fit">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-3 py-2 text-rose-400 hover:bg-rose-100 transition"
+                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-rose-400 hover:bg-rose-100 transition text-sm sm:text-base"
                   >
                     −
                   </button>
-                  <span className="w-8 text-center font-semibold text-slate-700">{quantity}</span>
+                  <span className="w-6 sm:w-8 text-center font-semibold text-slate-700 text-sm sm:text-base">{quantity}</span>
                   <button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="px-3 py-2 text-rose-400 hover:bg-rose-100 transition"
+                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-rose-400 hover:bg-rose-100 transition text-sm sm:text-base"
                   >
                     +
                   </button>
@@ -334,7 +334,7 @@ const ProductDetail = () => {
               </div>
               <button
                 onClick={handleAddToCart}
-                className="w-full bg-gradient-to-r from-rose-300 to-rose-400 hover:from-rose-400 hover:to-rose-500 text-white font-bold py-3 rounded-lg transition duration-200"
+                className="w-full bg-gradient-to-r from-rose-300 to-rose-400 hover:from-rose-400 hover:to-rose-500 text-white font-bold py-2 sm:py-3 rounded-lg transition duration-200 text-sm sm:text-base"
               >
                 Add to Cart
               </button>
@@ -343,20 +343,20 @@ const ProductDetail = () => {
         </div>
 
         {/* Reviews Section */}
-        <div className="border-t-2 border-rose-100 pt-12">
-          <h2 className="text-3xl font-bold text-slate-700 mb-8">Reviews ({reviews.length})</h2>
+        <div className="border-t-2 border-rose-100 pt-8 sm:pt-10 lg:pt-12">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-700 mb-6 sm:mb-8">Reviews ({reviews.length})</h2>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Review Form */}
             <div className="lg:col-span-1">
-              <div className="bg-rose-50 p-6 rounded-lg border-2 border-rose-100 sticky top-24">
-                <h3 className="text-lg font-semibold text-slate-700 mb-4">
+              <div className="bg-rose-50 p-4 sm:p-5 lg:p-6 rounded-lg border-2 border-rose-100 sticky top-20 lg:top-24">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-700 mb-3 sm:mb-4">
                   {userReview ? 'Edit Your Review' : 'Write a Review'}
                 </h3>
                 {user ? (
-                  <form onSubmit={handleSubmitReview} className="space-y-4">
+                  <form onSubmit={handleSubmitReview} className="space-y-3 sm:space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Rating</label>
+                      <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5 sm:mb-2">Rating</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
@@ -366,7 +366,7 @@ const ProductDetail = () => {
                             className="transition"
                           >
                             <Star
-                              className={`h-6 w-6 ${
+                              className={`h-5 w-5 sm:h-6 sm:w-6 ${
                                 star <= rating
                                   ? 'fill-rose-400 text-rose-400'
                                   : 'text-rose-200 hover:text-rose-300'

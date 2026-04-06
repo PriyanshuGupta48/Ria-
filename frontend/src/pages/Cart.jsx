@@ -11,6 +11,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState('contact');
+  const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
@@ -38,6 +39,7 @@ const Cart = () => {
 
   const handlePlaceOrder = async () => {
     const success = await placeOrder({
+      customerName: customerName.trim(),
       contactNumber,
       verificationToken,
       address,
@@ -51,6 +53,7 @@ const Cart = () => {
 
   const openCheckoutPopup = () => {
     setCheckoutStep('contact');
+    setCustomerName('');
     setOtp('');
     setVerificationToken('');
     setQuote(null);
@@ -129,10 +132,10 @@ const Cart = () => {
 
   if (!cart || !cart.items || cart.items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <ShoppingBag size={64} className="mx-auto text-gray-400 mb-4" />
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Your cart is empty</h2>
-        <p className="text-gray-500 mb-6">Looks like you haven't added any items yet.</p>
+      <div className="container mx-auto px-3 sm:px-4 py-12 sm:py-16 text-center">
+        <ShoppingBag size={48} className="mx-auto text-gray-400 mb-3 sm:mb-4" />
+        <h2 className="text-xl sm:text-2xl font-semibold text-gray-700 mb-2 sm:mb-4">Your cart is empty</h2>
+        <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">Looks like you haven't added any items yet.</p>
         <Link to="/" className="btn-primary inline-block">
           Continue Shopping
         </Link>
@@ -141,52 +144,52 @@ const Cart = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Shopping Cart</h1>
+    <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-6 sm:mb-8">Shopping Cart</h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="lg:col-span-2">
           {cart.items.map((item) => (
-            <div key={item.product._id} className="bg-white rounded-lg shadow-md p-4 mb-4">
-              <div className="flex flex-col sm:flex-row gap-4">
+            <div key={item.product._id} className="bg-white rounded-xl shadow-md p-3 sm:p-4 mb-3 sm:mb-4 border border-rose-50">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <img
                   src={assetUrl(item.product.images?.[0] || item.product.image)}
                   alt={item.product.name}
-                  className="w-32 h-32 object-cover rounded-lg"
+                  className="w-24 sm:w-32 h-24 sm:h-32 object-cover rounded-lg flex-shrink-0"
                 />
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800">{item.product.name}</h3>
-                  <p className="text-red-600 font-bold text-xl mt-2">{formatCurrency(item.product.price)}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-800 truncate">{item.product.name}</h3>
+                  <p className="text-rose-600 font-bold text-lg sm:text-xl mt-1">{formatCurrency(item.product.price)}</p>
                   
-                  <div className="flex items-center gap-4 mt-4">
-                    <div className="flex items-center gap-2 border rounded-lg">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-4">
+                    <div className="flex items-center gap-1.5 border rounded-lg border-gray-200">
                       <button
                         onClick={() => updateQuantity(item.product._id, Math.max(1, item.quantity - 1))}
-                        className="p-2 hover:bg-gray-100 transition"
+                        className="p-1.5 hover:bg-gray-100 transition"
                       >
-                        <Minus size={16} />
+                        <Minus size={14} />
                       </button>
-                      <span className="w-12 text-center font-semibold">{item.quantity}</span>
+                      <span className="w-8 text-center font-semibold text-sm">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.product._id, item.quantity + 1)}
-                        className="p-2 hover:bg-gray-100 transition"
+                        className="p-1.5 hover:bg-gray-100 transition"
                       >
-                        <Plus size={16} />
+                        <Plus size={14} />
                       </button>
                     </div>
                     
                     <button
                       onClick={() => removeFromCart(item.product._id)}
-                      className="text-red-600 hover:text-red-700 transition flex items-center gap-1"
+                      className="text-rose-600 hover:text-rose-700 transition flex items-center gap-1 text-sm font-medium"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                       Remove
                     </button>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-gray-600">Subtotal</p>
-                  <p className="text-2xl font-bold text-gray-800">
+                <div className="text-right mt-2 sm:mt-0">
+                  <p className="text-xs sm:text-sm text-gray-600">Subtotal</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-800">
                     {formatCurrency(item.product.price * item.quantity)}
                   </p>
                 </div>
@@ -196,75 +199,88 @@ const Cart = () => {
         </div>
         
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Order Summary</h2>
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 sticky top-20 lg:top-24 border border-rose-50">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Order Summary</h2>
             <div className="space-y-2 mb-4">
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600">Subtotal</span>
                 <span className="font-semibold">{formatCurrency(getCartTotal())}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600">Shipping</span>
                 <span className="text-gray-700">Calculated at checkout</span>
               </div>
               <div className="border-t pt-2 mt-2">
                 <div className="flex justify-between">
-                  <span className="text-lg font-bold">Total</span>
-                  <span className="text-2xl font-bold text-red-600">{formatCurrency(getCartTotal())}</span>
+                  <span className="text-base sm:text-lg font-bold">Total</span>
+                  <span className="text-xl sm:text-2xl font-bold text-rose-600">{formatCurrency(getCartTotal())}</span>
                 </div>
               </div>
             </div>
-            <Link to="/" className="btn-primary w-full text-center block">
-              Continue Shopping
-            </Link>
-            <Link to="/my-orders" className="btn-secondary w-full mt-3 text-center block">
-              View My Orders
-            </Link>
-            <button
-              type="button"
-              className="btn-secondary w-full mt-3"
-              onClick={openCheckoutPopup}
-            >
-              Place Order
-            </button>
+            <div className="space-y-2 sm:space-y-3">
+              <Link to="/" className="btn-primary w-full text-center block text-sm sm:text-base">
+                Continue Shopping
+              </Link>
+              <Link to="/my-orders" className="btn-secondary w-full text-center block text-sm sm:text-base">
+                View My Orders
+              </Link>
+              <button
+                type="button"
+                className="btn-secondary w-full text-sm sm:text-base"
+                onClick={openCheckoutPopup}
+              >
+                Place Order
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {isCheckoutOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 px-4 py-8">
-          <div className="w-full max-w-2xl bg-white rounded-3xl border border-rose-100 shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-rose-100">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 px-3 sm:px-4 py-8 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white rounded-2xl sm:rounded-3xl border border-rose-100 shadow-2xl overflow-hidden my-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-rose-100 gap-2 sm:gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-rose-500">Secure Checkout</p>
-                <h2 className="text-xl font-bold text-slate-800 mt-1">Complete Your Order</h2>
+                <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-rose-500">Secure Checkout</p>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800 mt-0.5 sm:mt-1">Complete Your Order</h2>
               </div>
               <button
                 type="button"
-                className="p-2 rounded-full hover:bg-rose-50 text-slate-700"
+                className="p-1.5 sm:p-2 rounded-full hover:bg-rose-50 text-slate-700 self-start sm:self-auto"
                 onClick={() => setIsCheckoutOpen(false)}
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="px-6 pt-4">
-              <div className="grid grid-cols-3 gap-2 text-xs font-semibold">
-                <div className={`rounded-lg px-3 py-2 text-center ${checkoutStep === 'contact' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
+            <div className="px-4 sm:px-6 pt-3 sm:pt-4">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-semibold">
+                <div className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center ${checkoutStep === 'contact' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
                   1. Contact OTP
                 </div>
-                <div className={`rounded-lg px-3 py-2 text-center ${checkoutStep === 'address' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
+                <div className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center ${checkoutStep === 'address' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
                   2. Address
                 </div>
-                <div className={`rounded-lg px-3 py-2 text-center ${checkoutStep === 'payment' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
+                <div className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center ${checkoutStep === 'payment' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
                   3. Payment
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
+            <div className="px-4 sm:px-6 py-4 sm:py-5 max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
               {checkoutStep === 'contact' && (
                 <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="input-field"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Contact Number</label>
                     <div className="flex gap-2">

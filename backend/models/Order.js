@@ -62,6 +62,11 @@ const orderSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    customerName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     shippingAddress: {
       houseNo: { type: String, default: '', trim: true },
       laneNo: { type: String, default: '', trim: true },

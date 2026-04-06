@@ -197,6 +197,10 @@ const OrderDetail = () => {
             <h2 className="text-lg font-bold text-slate-800 mb-4">Order Summary</h2>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between gap-4">
+                <span className="text-slate-600">Customer name</span>
+                <span className="font-semibold text-slate-800">{order.customerName || 'Not set'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
                 <span className="text-slate-600">Subtotal</span>
                 <span className="font-semibold text-slate-800">{formatCurrency(order.subtotalAmount || order.totalAmount)}</span>
               </div>

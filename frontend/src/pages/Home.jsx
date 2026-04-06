@@ -44,19 +44,19 @@ const Home = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <section className="hero-panel mb-10">
+    <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 lg:py-10">
+      <section className="hero-panel mb-8 sm:mb-10">
         <div className="hero-copy">
           <span className="hero-pill">Curated Croatia</span>
           <h1 className="hero-title">Authentic Croatian Treasures</h1>
           <p className="hero-text">
-            Discover gifts, decor, and keepsakes inspired by Croatia’s coastlines, culture, and craft.
+            Discover gifts, decor, and keepsakes inspired by Croatia's coastlines, culture, and craft.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/my-orders" className="btn-primary inline-flex items-center justify-center">
+          <div className="mt-4 sm:mt-6 flex flex-wrap gap-2 sm:gap-3">
+            <Link to="/my-orders" className="btn-primary inline-flex items-center justify-center text-sm sm:text-base">
               My Orders
             </Link>
-            <Link to="/cart" className="btn-secondary inline-flex items-center justify-center">
+            <Link to="/cart" className="btn-secondary inline-flex items-center justify-center text-sm sm:text-base">
               Go to Cart
             </Link>
           </div>

@@ -142,10 +142,10 @@ const Orders = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="dashboard-panel mb-6">
-        <h1 className="text-3xl font-black text-slate-800">My Orders</h1>
-        <p className="text-sm text-slate-600 mt-1">Check whether your order is pending, accepted, shipped, or rejected and track each step.</p>
+    <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="dashboard-panel mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800">My Orders</h1>
+        <p className="text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2">Check whether your order is pending, accepted, shipped, or rejected and track each step.</p>
       </div>
 
       <div className="space-y-5">
@@ -159,6 +159,7 @@ const Orders = () => {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-slate-500">Order ID</p>
                   <p className="text-sm font-semibold text-slate-700">{order._id}</p>
+                  <p className="text-sm text-slate-600 mt-1">{order.customerName || 'Customer name not set'}</p>
                   <p className="text-xs text-slate-500 mt-1">Placed on {new Date(order.createdAt).toLocaleString()}</p>
                 </div>
 

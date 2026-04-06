@@ -1038,20 +1038,20 @@ const Admin = () => {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="admin-header mb-6">
+    <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="admin-header mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-rose-600">Control center</p>
-          <h1 className="text-3xl font-black text-slate-800 mt-2">Advanced Admin Dashboard</h1>
-          <p className="text-sm text-slate-600 mt-1">Manage insights, products, orders and operations from one place.</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-rose-600">Control center</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 mt-1 sm:mt-2">Advanced Admin Dashboard</h1>
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">Manage insights, products, orders and operations from one place.</p>
         </div>
-        <button type="button" onClick={fetchAdminData} className="btn-secondary">
+        <button type="button" onClick={fetchAdminData} className="btn-secondary whitespace-nowrap self-start sm:self-auto">
           Refresh Data
         </button>
       </div>
 
-      <div className="dashboard-panel mb-6">
-        <div className="flex flex-wrap gap-2">
+      <div className="dashboard-panel mb-4 sm:mb-6">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {TAB_ITEMS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -1060,14 +1060,15 @@ const Admin = () => {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl border transition ${
+                className={`inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl border transition text-xs sm:text-sm ${
                   isActive
                     ? 'bg-rose-400 text-white border-rose-400'
                     : 'bg-white text-slate-700 border-rose-100 hover:bg-rose-50'
                 }`}
               >
-                <Icon size={16} />
-                <span className="font-semibold text-sm">{tab.label}</span>
+                <Icon size={14} className="sm:size-[16px]" />
+                <span className="font-semibold hidden sm:inline">{tab.label}</span>
+                <span className="font-semibold sm:hidden">{tab.label.split('/')[0]}</span>
               </button>
             );
           })}
