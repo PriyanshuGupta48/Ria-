@@ -217,6 +217,9 @@ const Cart = () => {
             <Link to="/" className="btn-primary w-full text-center block">
               Continue Shopping
             </Link>
+            <Link to="/my-orders" className="btn-secondary w-full mt-3 text-center block">
+              View My Orders
+            </Link>
             <button
               type="button"
               className="btn-secondary w-full mt-3"
