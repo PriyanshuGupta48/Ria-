@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/Navbar';
+import GuestNavbar from './components/GuestNavbar';
 import Home from './pages/Home';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
@@ -34,10 +35,12 @@ const AppShell = () => {
   const userRole = user?.role || (user?.isAdmin ? 'admin' : 'user');
   const isAdminRoute = location.pathname.startsWith('/admin');
   const showUserNavbar = Boolean(user) && userRole === 'user' && !isAdminRoute;
+  const showGuestNavbar = !user && !isAdminRoute;
 
   return (
     <div className="min-h-screen app-background">
       {showUserNavbar && <Navbar />}
+      {showGuestNavbar && <GuestNavbar />}
       <main>
         <Routes>
           <Route
