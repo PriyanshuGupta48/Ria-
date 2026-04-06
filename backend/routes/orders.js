@@ -343,7 +343,7 @@ const resolveProductDimensionCm = (value, fallback) => {
   return fallback;
 };
 
-const buildDelhiveryPayload = ({ address, packageMetrics }) => {
+const buildDelhiveryPayload = ({ address, packageMetrics, customerName, contactNumber }) => {
   const originPinCode = String(process.env.DELHIVERY_ORIGIN_PINCODE || '').trim();
   const parsedChargeableWeightGrams = Number(packageMetrics?.chargeableWeightGrams);
   const finalChargeableWeightGrams = Number.isFinite(parsedChargeableWeightGrams) && parsedChargeableWeightGrams > 0
@@ -375,10 +375,19 @@ const buildDelhiveryPayload = ({ address, packageMetrics }) => {
     delete payload.o_pin;
   }
 
+  // Add customer details if provided
+  if (customerName) {
+    payload.customer_name = String(customerName).trim();
+  }
+
+  if (contactNumber) {
+    payload.customer_phone = String(contactNumber).trim();
+  }
+
   return payload;
 };
 
-const getDeliveryQuote = async (address, subtotalAmount, packageMetrics) => {
+const getDeliveryQuote = async (address, subtotalAmount, packageMetrics, customerName, contactNumber) => {
   const quoteUrl = String(process.env.DELHIVERY_ONE_QUOTE_URL || 'https://staging-express.delhivery.com/api/kinko/v1/invoice/charges/.json').trim();
   const apiToken = String(process.env.DELHIVERY_ONE_API_TOKEN || '').trim();
   const authScheme = String(process.env.DELHIVERY_ONE_AUTH_SCHEME || 'Token').trim();
@@ -401,7 +410,7 @@ const getDeliveryQuote = async (address, subtotalAmount, packageMetrics) => {
     throw new Error('Set DELHIVERY_ORIGIN_PINCODE to your registered pickup pincode in backend/.env');
   }
 
-  const payload = buildDelhiveryPayload({ address, packageMetrics });
+  const payload = buildDelhiveryPayload({ address, packageMetrics, customerName, contactNumber });
   const headers = {
     Authorization: `${authScheme} ${apiToken}`,
     'Content-Type': 'application/json',
@@ -653,10 +662,15 @@ router.post('/quote', authMiddleware, async (req, res) => {
 
 router.post('/place', authMiddleware, async (req, res) => {
   try {
-    const { contactNumber, verificationToken, address, paymentMethod } = req.body;
+    const { customerName, contactNumber, verificationToken, address, paymentMethod } = req.body;
+    const cleanCustomerName = String(customerName || '').trim();
     const cleanContact = String(contactNumber || '').trim();
     const key = `${req.user.userId}:${cleanContact}`;
     const otpEntry = otpStore.get(key);
+
+    if (!cleanCustomerName) {
+      return res.status(400).json({ message: 'Customer name is required' });
+    }
 
     if (!/^\d{10}$/.test(cleanContact)) {
       return res.status(400).json({ message: 'A valid contact number is required' });
@@ -683,7 +697,7 @@ router.post('/place', authMiddleware, async (req, res) => {
     }
 
     const { cart, orderItems, subtotalAmount } = cartResult;
-    const quote = await getDeliveryQuote(shippingAddress, subtotalAmount, cartResult.packageMetrics);
+    const quote = await getDeliveryQuote(shippingAddress, subtotalAmount, cartResult.packageMetrics, cleanCustomerName, cleanContact);
     const paymentReference = `PAY-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
     const order = await Order.create({
@@ -699,6 +713,7 @@ router.post('/place', authMiddleware, async (req, res) => {
       paymentMethod,
       paymentStatus: 'paid',
       paymentReference,
+      customerName: cleanCustomerName,
       statusTimeline: {
         pendingAt: new Date(),
       },
