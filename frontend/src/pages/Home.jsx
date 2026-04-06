@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import CategoryFilter from '../components/CategoryFilter';
 import { apiUrl } from '../config/api';
@@ -51,6 +52,14 @@ const Home = () => {
           <p className="hero-text">
             Discover gifts, decor, and keepsakes inspired by Croatia’s coastlines, culture, and craft.
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to="/my-orders" className="btn-primary inline-flex items-center justify-center">
+              My Orders
+            </Link>
+            <Link to="/cart" className="btn-secondary inline-flex items-center justify-center">
+              Go to Cart
+            </Link>
+          </div>
         </div>
         <div className="hero-stat">
           <div>

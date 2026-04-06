@@ -17,9 +17,6 @@ const GuestNavbar = () => {
             <Link to="/register" className="btn-primary inline-flex items-center justify-center">
               Register
             </Link>
-            <Link to="/admin-login" className="text-sm font-semibold text-slate-700 hover:text-slate-900 px-3 py-2">
-              Admin Login
-            </Link>
           </div>
         </div>
       </div>
