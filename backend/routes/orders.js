@@ -343,6 +343,219 @@ const resolveProductDimensionCm = (value, fallback) => {
   return fallback;
 };
 
+const buildShipmentAddressLine = (address = {}) => {
+  return [address.houseNo, address.laneNo, address.landmark]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(', ');
+};
+
+const getDelhiveryPickupDetails = () => ({
+  name: String(process.env.DELHIVERY_PICKUP_NAME || process.env.DELHIVERY_SENDER_NAME || '').trim(),
+  phone: String(process.env.DELHIVERY_PICKUP_PHONE || process.env.DELHIVERY_SENDER_PHONE || '').trim(),
+  address: String(process.env.DELHIVERY_PICKUP_ADDRESS || '').trim(),
+  city: String(process.env.DELHIVERY_PICKUP_CITY || '').trim(),
+  state: String(process.env.DELHIVERY_PICKUP_STATE || '').trim(),
+  pinCode: String(process.env.DELHIVERY_ORIGIN_PINCODE || '').trim(),
+  country: String(process.env.DELHIVERY_PICKUP_COUNTRY || 'India').trim(),
+  location: String(process.env.DELHIVERY_PICKUP_LOCATION || process.env.DELHIVERY_PICKUP_NAME || 'primary').trim(),
+});
+
+const buildOrderPackageMetrics = (order) => {
+  const validItems = (order?.items || []).filter((item) => item?.product);
+
+  const totalProductWeightGrams = validItems.reduce((sum, item) => {
+    const itemWeight = resolveProductWeightGrams(item.product);
+    return sum + (itemWeight * item.quantity);
+  }, 0);
+
+  const totalChargeableWeightGrams = totalProductWeightGrams + PACKAGING_WEIGHT_GRAMS;
+  const lengthCm = validItems.reduce((maxValue, item) => {
+    const itemLength = resolveProductDimensionCm(item.product?.length, DEFAULT_LENGTH_CM);
+    return Math.max(maxValue, itemLength);
+  }, DEFAULT_LENGTH_CM);
+
+  const breadthCm = validItems.reduce((maxValue, item) => {
+    const itemBreadth = resolveProductDimensionCm(item.product?.breadth, DEFAULT_BREADTH_CM);
+    return Math.max(maxValue, itemBreadth);
+  }, DEFAULT_BREADTH_CM);
+
+  const heightCm = validItems.reduce((sum, item) => {
+    const itemHeight = resolveProductDimensionCm(item.product?.height, DEFAULT_HEIGHT_CM);
+    return sum + (itemHeight * item.quantity);
+  }, 0) || DEFAULT_HEIGHT_CM;
+
+  return {
+    chargeableWeightGrams: totalChargeableWeightGrams,
+    lengthCm,
+    breadthCm,
+    heightCm,
+  };
+};
+
+const buildDelhiveryShipmentPayload = (order) => {
+  const shippingAddress = order?.shippingAddress || {};
+  const pickup = getDelhiveryPickupDetails();
+  const packageMetrics = buildOrderPackageMetrics(order);
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const productNames = items
+    .map((item) => `${item?.product?.name || 'Product'} x ${item?.quantity || 1}`)
+    .join(', ')
+    .slice(0, 250);
+
+  const addressLine = [
+    buildShipmentAddressLine(shippingAddress),
+    String(shippingAddress.city || '').trim(),
+    String(shippingAddress.state || '').trim(),
+    String(shippingAddress.pinCode || '').trim(),
+    String(shippingAddress.country || 'India').trim(),
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return {
+    pickup_location: pickup.location,
+    name: String(order?.customerName || '').trim(),
+    customer_name: String(order?.customerName || '').trim(),
+    phone: String(order?.contactNumber || '').trim(),
+    customer_phone: String(order?.contactNumber || '').trim(),
+    order: String(order?._id || '').trim(),
+    seller_inv_no: String(order?._id || '').trim(),
+    reference_number: String(order?._id || '').trim(),
+    payment_mode: 'Pre-paid',
+    cod_amount: 0,
+    total_amount: Number(order?.totalAmount || 0),
+    invoice_amount: Number(order?.totalAmount || 0),
+    products_desc: productNames,
+    product_desc: productNames,
+    address: addressLine,
+    city: String(shippingAddress.city || '').trim(),
+    state: String(shippingAddress.state || '').trim(),
+    pin: String(shippingAddress.pinCode || '').trim(),
+    country: String(shippingAddress.country || 'India').trim(),
+    shipment_length: packageMetrics.lengthCm,
+    shipment_breadth: packageMetrics.breadthCm,
+    shipment_height: packageMetrics.heightCm,
+    shipment_weight: packageMetrics.chargeableWeightGrams,
+    weight: packageMetrics.chargeableWeightGrams,
+    waybill: String(order?.awbNumber || '').trim(),
+    return_name: pickup.name,
+    return_phone: pickup.phone,
+    return_address: pickup.address,
+    return_city: pickup.city,
+    return_state: pickup.state,
+    return_pin: pickup.pinCode,
+    return_country: pickup.country,
+  };
+};
+
+const createDelhiveryShipment = async (order) => {
+  const existingAwb = String(order?.awbNumber || '').trim();
+  const existingTrackingLink = String(order?.trackingLink || '').trim();
+
+  if (existingAwb) {
+    return {
+      awbNumber: existingAwb,
+      trackingLink: existingTrackingLink || `https://www.delhivery.com/track/package/${encodeURIComponent(existingAwb)}`,
+      courierExpectedDeliveryDate: order?.courierExpectedDeliveryDate || null,
+      bookingSource: 'existing',
+    };
+  }
+
+  const bookUrl = String(process.env.DELHIVERY_ONE_SHIPMENT_URL || 'https://track.delhivery.com/api/cmu/create.json').trim();
+  const apiToken = String(process.env.DELHIVERY_ONE_API_TOKEN || '').trim();
+  const authScheme = String(process.env.DELHIVERY_ONE_AUTH_SCHEME || 'Token').trim();
+
+  if (!bookUrl || !apiToken) {
+    throw new Error('Delhivery shipment booking is not configured. Set DELHIVERY_ONE_SHIPMENT_URL and DELHIVERY_ONE_API_TOKEN.');
+  }
+
+  const payload = buildDelhiveryShipmentPayload(order);
+  const requestMethod = String(process.env.DELHIVERY_ONE_SHIPMENT_METHOD || 'POST').trim().toUpperCase();
+  const headers = {
+    Authorization: `${authScheme} ${apiToken}`,
+  };
+
+  const params = new URLSearchParams(
+    Object.entries({
+      format: 'json',
+      data: JSON.stringify([payload]),
+    }).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        acc[key] = String(value);
+      }
+      return acc;
+    }, {})
+  );
+
+  let requestUrl = bookUrl;
+  let requestBody = '';
+
+  if (requestMethod === 'GET') {
+    requestUrl = `${bookUrl}${bookUrl.includes('?') ? '&' : '?'}${params.toString()}`;
+  } else {
+    requestBody = params.toString();
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+  }
+
+  const response = await fetch(requestUrl, {
+    method: requestMethod,
+    headers,
+    body: requestMethod === 'GET' ? undefined : requestBody,
+  });
+
+  const responseText = await response.text();
+  let responseBody = {};
+
+  if (responseText) {
+    try {
+      responseBody = JSON.parse(responseText);
+    } catch (error) {
+      responseBody = { raw: responseText };
+    }
+  }
+
+  if (!response.ok) {
+    const errorMessage = buildCompactApiError(responseBody, responseText);
+    throw new Error(`Delhivery shipment booking failed: ${errorMessage}`);
+  }
+
+  const resolvedAwb = findStringByKeys(responseBody, [
+    'waybill',
+    'awb',
+    'awb_number',
+    'awbno',
+    'waybill_no',
+    'waybillno',
+  ]) || String(order?.awbNumber || '').trim();
+
+  const trackingLink = resolvedAwb
+    ? `https://www.delhivery.com/track/package/${encodeURIComponent(resolvedAwb)}`
+    : '';
+
+  const courierExpectedDeliveryDate = findDateByKeys(responseBody, [
+    'expected_delivery_date',
+    'expected_delivery',
+    'promise_delivery_date',
+    'promised_delivery_date',
+    'etd',
+    'eta',
+  ]);
+
+  if (!resolvedAwb) {
+    const errorMessage = buildCompactApiError(responseBody, responseText);
+    throw new Error(`Delhivery shipment booking did not return a waybill${errorMessage ? `: ${errorMessage}` : ''}`);
+  }
+
+  return {
+    awbNumber: resolvedAwb,
+    trackingLink,
+    courierExpectedDeliveryDate,
+    bookingSource: 'delhivery_one',
+    raw: responseBody,
+  };
+};
+
 const buildDelhiveryPayload = ({ address, packageMetrics, customerName, contactNumber }) => {
   const originPinCode = String(process.env.DELHIVERY_ORIGIN_PINCODE || '').trim();
   const parsedChargeableWeightGrams = Number(packageMetrics?.chargeableWeightGrams);
@@ -883,11 +1096,13 @@ router.put('/admin/:orderId/status', authMiddleware, adminMiddleware, async (req
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findById(req.params.orderId).populate('items.product', 'name weight length breadth height');
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
+
+    let shipmentDetails = null;
 
     if (status === 'accepted') {
       if (!expectedShippingDate) {
@@ -901,10 +1116,32 @@ router.put('/admin/:orderId/status', authMiddleware, adminMiddleware, async (req
       }
 
       order.expectedShippingDate = shippingDate;
+
+      if (!order.awbNumber || !order.trackingLink) {
+        shipmentDetails = await createDelhiveryShipment(order);
+      }
     }
 
     if (status === 'shipped') {
+      if (!order.awbNumber || !order.trackingLink) {
+        shipmentDetails = await createDelhiveryShipment(order);
+      }
+
       await syncOrderTrackingFromDelhivery(order);
+    }
+
+    if (shipmentDetails) {
+      if (shipmentDetails.awbNumber) {
+        order.awbNumber = shipmentDetails.awbNumber;
+      }
+
+      if (shipmentDetails.trackingLink) {
+        order.trackingLink = shipmentDetails.trackingLink;
+      }
+
+      if (shipmentDetails.courierExpectedDeliveryDate) {
+        order.courierExpectedDeliveryDate = shipmentDetails.courierExpectedDeliveryDate;
+      }
     }
 
     order.status = status;
