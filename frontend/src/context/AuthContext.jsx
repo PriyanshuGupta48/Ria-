@@ -8,14 +8,24 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const shouldKeepLocalAuth = process.env.REACT_APP_KEEP_LOCAL_AUTH === 'true';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
+
+    if (isLocalhost && !shouldKeepLocalAuth) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setLoading(false);
+      return;
+    }
+
     if (token && userData) {
       setUser(JSON.parse(userData));
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
