@@ -55,3 +55,20 @@ npm run migrate:media
 ```
 
 This updates product images and review images already stored in MongoDB.
+
+## Local And Render Setup
+
+Use the example files as a starting point:
+
+```text
+backend/.env.example
+frontend/.env.example
+```
+
+For Cloudinary to work in both local and hosted environments, set the same three Cloudinary variables in the backend environment wherever the backend runs:
+
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+Local frontend should point at the local backend URL, while the deployed frontend should point at the hosted backend URL through `REACT_APP_API_URL` or `REACT_APP_API_BASE_URL`.
