@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
@@ -13,7 +13,7 @@ const Cart = () => {
   const [checkoutStep, setCheckoutStep] = useState('contact');
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
-  const [accessToken, setAccessToken] = useState('');
+  const [otp, setOtp] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -30,93 +30,16 @@ const Cart = () => {
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [placingOrder, setPlacingOrder] = useState(false);
-  const msg91WidgetId = useMemo(() => String(process.env.REACT_APP_MSG91_WIDGET_ID || '').trim(), []);
-  const msg91TokenAuth = useMemo(() => String(process.env.REACT_APP_MSG91_TOKEN_AUTH || '').trim(), []);
-  const msg91WidgetScriptUrl = useMemo(
-    () => String(process.env.REACT_APP_MSG91_WIDGET_SCRIPT_URL || 'https://control.msg91.com/app/assets/otp-provider/otp-provider.js').trim(),
-    []
-  );
-
-  const getAccessTokenFromPayload = (payload) => {
-    if (!payload) {
-      return '';
-    }
-
-    if (typeof payload === 'string') {
-      return payload.trim();
-    }
-
-    if (typeof payload !== 'object') {
-      return '';
-    }
-
-    const queue = [payload];
-    const seen = new Set();
-
-    while (queue.length > 0) {
-      const current = queue.shift();
-      if (!current || typeof current !== 'object') {
-        continue;
-      }
-
-      if (seen.has(current)) {
-        continue;
-      }
-      seen.add(current);
-
-      for (const [key, value] of Object.entries(current)) {
-        const lower = String(key).toLowerCase();
-        if (['access-token', 'accesstoken', 'token', 'jwt', 'jwttoken'].includes(lower)) {
-          const tokenValue = String(value || '').trim();
-          if (tokenValue) {
-            return tokenValue;
-          }
-        }
-
-        if (value && typeof value === 'object') {
-          queue.push(value);
-        }
-      }
-    }
-
-    return '';
-  };
-
-  const loadMsg91Script = async () => {
-    if (window.initSendOTP || window.SendOtpVerification || window.sendOtp) {
+  const verifyOtpCode = async (otpCode) => {
+    if (!otpCode) {
       return;
     }
 
-    await new Promise((resolve, reject) => {
-      const existing = document.querySelector(`script[data-msg91-sdk="true"]`);
-      if (existing) {
-        existing.addEventListener('load', () => resolve(), { once: true });
-        existing.addEventListener('error', () => reject(new Error('Failed to load MSG91 SDK')), { once: true });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = msg91WidgetScriptUrl;
-      script.async = true;
-      script.defer = true;
-      script.dataset.msg91Sdk = 'true';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load MSG91 SDK'));
-      document.body.appendChild(script);
-    });
-  };
-
-  const verifyWithAccessToken = async (token) => {
-    if (!token) {
-      return;
-    }
-
-    setAccessToken(token);
     setVerifyingOtp(true);
     try {
       const response = await axios.post(apiUrl('/api/orders/verify-otp'), {
         contactNumber: contactNumber.trim(),
-        accessToken: token,
+        otp: otpCode,
       });
       setVerificationToken(response.data.verificationToken);
       toast.success('Contact verified successfully');
@@ -125,73 +48,6 @@ const Cart = () => {
       toast.error(error.response?.data?.message || 'OTP verification failed');
     } finally {
       setVerifyingOtp(false);
-    }
-  };
-
-  const openMsg91Widget = async () => {
-    if (!msg91WidgetId) {
-      toast.error('MSG91 widget is not configured. Set REACT_APP_MSG91_WIDGET_ID.');
-      return;
-    }
-
-    if (!msg91TokenAuth) {
-      toast.error('MSG91 tokenAuth is missing. Set REACT_APP_MSG91_TOKEN_AUTH.');
-      return;
-    }
-
-    if (!/^\d{10}$/.test(contactNumber.trim())) {
-      toast.error('Enter a valid 10 digit contact number first');
-      return;
-    }
-
-    const completeSuccess = async (payload) => {
-      const token = getAccessTokenFromPayload(payload);
-      if (!token) {
-        toast.error('MSG91 OTP completed but access token was not found.');
-        return;
-      }
-
-      await verifyWithAccessToken(token);
-    };
-
-    const completeFailure = (error) => {
-      const msg = String(error?.message || error?.error || 'OTP not completed');
-      toast.error(msg);
-    };
-
-    try {
-      await loadMsg91Script();
-
-      const identifier = `91${contactNumber.trim()}`;
-      const config = {
-        widgetId: msg91WidgetId,
-        tokenAuth: msg91TokenAuth,
-        identifier,
-        success: completeSuccess,
-        failure: completeFailure,
-      };
-
-      if (typeof window.initSendOTP === 'function') {
-        window.initSendOTP(config);
-        return;
-      }
-
-      if (typeof window.SendOtpVerification === 'function') {
-        const instance = new window.SendOtpVerification(config);
-        if (typeof instance.initiate === 'function') {
-          instance.initiate();
-          return;
-        }
-      }
-
-      if (typeof window.sendOtp === 'function') {
-        window.sendOtp(config);
-        return;
-      }
-
-      toast.error('MSG91 widget SDK loaded, but no supported init function was found.');
-    } catch (error) {
-      toast.error(error.message || 'Unable to open MSG91 widget');
     }
   };
   const formatCurrency = (amount) =>
@@ -218,7 +74,7 @@ const Cart = () => {
   const openCheckoutPopup = () => {
     setCheckoutStep('contact');
     setCustomerName('');
-    setAccessToken('');
+    setOtp('');
     setVerificationToken('');
     setQuote(null);
     setIsCheckoutOpen(true);
@@ -235,8 +91,7 @@ const Cart = () => {
       const response = await axios.post(apiUrl('/api/orders/send-otp'), {
         contactNumber: contactNumber.trim(),
       });
-      toast.success(response.data?.message || 'OTP session created. Continue in MSG91 widget.');
-      await openMsg91Widget();
+      toast.success(response.data?.message || 'OTP sent successfully');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to send OTP');
     } finally {
@@ -245,12 +100,12 @@ const Cart = () => {
   };
 
   const verifyOtp = async () => {
-    if (!accessToken.trim()) {
-      toast.error('Enter MSG91 access token');
+    if (!/^\d{6}$/.test(otp.trim())) {
+      toast.error('Enter valid 6 digit OTP');
       return;
     }
 
-    await verifyWithAccessToken(accessToken.trim());
+    await verifyOtpCode(otp.trim());
   };
 
   const proceedToPayment = async () => {
@@ -450,24 +305,19 @@ const Cart = () => {
                     <p className="text-xs text-slate-500 mt-1">
                       OTP policy: 6 digits, expires in 45s, max 2 resends with 30s cooldown.
                     </p>
-                    <div className="mt-2">
-                      <button type="button" className="btn-primary" onClick={openMsg91Widget} disabled={sendingOtp}>
-                        Open MSG91 OTP Widget
-                      </button>
-                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">MSG91 Access Token</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Enter OTP</label>
                     <input
-                      type="text"
-                      value={accessToken}
-                      onChange={(e) => setAccessToken(e.target.value.trim())}
-                      placeholder="Paste jwt_token_from_otp_widget"
+                      type="tel"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                      placeholder="Enter 6 digit OTP"
                       className="input-field"
                     />
                     <p className="text-xs text-slate-500 mt-1">
-                      After OTP success in MSG91 widget, paste token here and verify. Max verify attempts: 3.
+                      Enter the OTP received on SMS and click verify. Max verify attempts: 3.
                     </p>
                   </div>
 

@@ -15,7 +15,8 @@ const OTP_MAX_RESEND_ATTEMPTS = 2;
 const OTP_MAX_VERIFY_ATTEMPTS = 3;
 const OTP_VERIFIED_TOKEN_TTL_MS = 15 * 60 * 1000;
 const OTP_SESSION_TTL_MS = 15 * 60 * 1000;
-const MSG91_VERIFY_ACCESS_TOKEN_URL = 'https://control.msg91.com/api/v5/widget/verifyAccessToken';
+const MSG91_SEND_OTP_URL = 'https://control.msg91.com/api/v5/otp';
+const MSG91_VERIFY_OTP_URL = 'https://control.msg91.com/api/v5/otp/verify';
 
 const DELHIVERY_PARTNER_NAME = 'Delhivery One';
 const DEFAULT_PRODUCT_WEIGHT_GRAMS = 500;
@@ -120,67 +121,88 @@ const getOtpState = (key) => {
   return state;
 };
 
-const isMsg91VerificationSuccess = (payload) => {
-  if (!payload || typeof payload !== 'object') {
-    return false;
+const parseJsonText = (text) => {
+  if (!text) {
+    return {};
   }
 
-  const booleanSignals = [payload.success, payload.status, payload.valid]
-    .some((value) => value === true || value === 'true');
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    return { raw: text };
+  }
+};
 
-  if (booleanSignals) {
+const isMsg91Success = (payload = {}) => {
+  const type = String(payload?.type || '').toLowerCase();
+  if (type === 'success') {
     return true;
   }
 
-  const stringSignals = [payload.type, payload.message, payload.response]
-    .map((value) => String(value || '').toLowerCase());
-
-  return stringSignals.some((value) => value.includes('success') || value.includes('verified') || value.includes('valid'));
+  return payload?.success === true || payload?.status === true;
 };
 
-const verifyMsg91AccessToken = async (accessToken) => {
+const sendMsg91Otp = async (contactNumber) => {
+  const authKey = String(process.env.MSG91_AUTH_KEY || '').trim();
+  const templateId = String(process.env.MSG91_TEMPLATE_ID || '').trim();
+
+  if (!authKey) {
+    throw new Error('MSG91_AUTH_KEY is missing. Configure it in backend environment variables.');
+  }
+
+  if (!templateId) {
+    throw new Error('MSG91_TEMPLATE_ID is missing. Configure it in backend environment variables.');
+  }
+
+  const params = new URLSearchParams({
+    authkey: authKey,
+    mobile: `91${contactNumber}`,
+    template_id: templateId,
+  });
+
+  const response = await fetch(`${MSG91_SEND_OTP_URL}?${params.toString()}`, {
+    method: 'POST',
+    headers: {
+      authkey: authKey,
+      Accept: 'application/json',
+    },
+  });
+
+  const text = await response.text();
+  const body = parseJsonText(text);
+
+  if (!response.ok || !isMsg91Success(body)) {
+    const details = String(body?.message || body?.error || body?.type || 'MSG91 send OTP failed');
+    throw new Error(details);
+  }
+
+  return body;
+};
+
+const verifyMsg91Otp = async (contactNumber, otp) => {
   const authKey = String(process.env.MSG91_AUTH_KEY || '').trim();
 
   if (!authKey) {
     throw new Error('MSG91_AUTH_KEY is missing. Configure it in backend environment variables.');
   }
 
-  const response = await fetch(MSG91_VERIFY_ACCESS_TOKEN_URL, {
+  const params = new URLSearchParams({
+    authkey: authKey,
+    mobile: `91${contactNumber}`,
+    otp,
+  });
+
+  const response = await fetch(`${MSG91_VERIFY_OTP_URL}?${params.toString()}`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      authkey: authKey,
       Accept: 'application/json',
     },
-    body: JSON.stringify({
-      authkey: authKey,
-      'access-token': accessToken,
-    }),
   });
 
   const text = await response.text();
-  let body = {};
-
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch (error) {
-      body = { raw: text };
-    }
-  }
-
-  return {
-    ok: response.ok,
-    body,
-  };
-};
-
-const extractLast10Digits = (value) => {
-  const digits = String(value || '').replace(/\D/g, '');
-  if (digits.length < 10) {
-    return '';
-  }
-
-  return digits.slice(-10);
+  const body = parseJsonText(text);
+  return response.ok && isMsg91Success(body);
 };
 
 const normalizeAddress = (rawAddress = {}) => ({
@@ -911,10 +933,11 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
     const existingState = getOtpState(key);
 
     if (!existingState) {
+      await sendMsg91Otp(contactNumber);
       otpStore.set(key, createOtpState(now));
 
       return res.json({
-        message: 'OTP session created. Complete verification in MSG91 widget.',
+        message: 'OTP sent successfully',
         meta: {
           otpLength: OTP_LENGTH,
           otpExpirySeconds: OTP_EXPIRY_MS / 1000,
@@ -931,9 +954,10 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
     }
 
     if (existingState.resendAttempts >= OTP_MAX_RESEND_ATTEMPTS && existingState.otpExpiresAt < now) {
+      await sendMsg91Otp(contactNumber);
       otpStore.set(key, createOtpState(now));
       return res.json({
-        message: 'Previous OTP cycle expired. New OTP session created.',
+        message: 'OTP sent successfully',
         meta: {
           otpLength: OTP_LENGTH,
           otpExpirySeconds: OTP_EXPIRY_MS / 1000,
@@ -959,6 +983,8 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
       });
     }
 
+    await sendMsg91Otp(contactNumber);
+
     const updatedState = {
       ...existingState,
       otpExpiresAt: now + OTP_EXPIRY_MS,
@@ -973,7 +999,7 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
     otpStore.set(key, updatedState);
 
     return res.json({
-      message: 'OTP resend allowed. Trigger resend from MSG91 widget now.',
+      message: 'OTP resent successfully',
       meta: {
         remainingResends: Math.max(0, OTP_MAX_RESEND_ATTEMPTS - updatedState.resendAttempts),
         otpExpirySeconds: OTP_EXPIRY_MS / 1000,
@@ -988,12 +1014,12 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
 router.post('/verify-otp', authMiddleware, async (req, res) => {
   try {
     const contactNumber = String(req.body.contactNumber || '').trim();
-    const accessToken = String(req.body.accessToken || req.body.access_token || '').trim();
+    const otp = String(req.body.otp || '').trim();
     const key = buildOtpSessionKey(req.user.userId, contactNumber);
     const otpEntry = getOtpState(key);
 
-    if (!/^[A-Za-z0-9._-]{16,}$/.test(accessToken)) {
-      return res.status(400).json({ message: 'Valid MSG91 access token is required' });
+    if (!/^\d{6}$/.test(otp)) {
+      return res.status(400).json({ message: 'Valid 6 digit OTP is required' });
     }
 
     if (!otpEntry) {
@@ -1008,8 +1034,7 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
       return res.status(429).json({ message: 'Maximum OTP verify attempts reached. Please resend OTP.' });
     }
 
-    const msg91Result = await verifyMsg91AccessToken(accessToken);
-    const verificationSuccessful = msg91Result.ok && isMsg91VerificationSuccess(msg91Result.body);
+    const verificationSuccessful = await verifyMsg91Otp(contactNumber, otp);
 
     if (!verificationSuccessful) {
       const nextAttemptCount = otpEntry.verifyAttempts + 1;
@@ -1023,23 +1048,6 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
         message: remainingAttempts > 0
           ? `OTP verification failed. ${remainingAttempts} attempt(s) left.`
           : 'OTP verification failed. Maximum verify attempts reached, please resend OTP.',
-      });
-    }
-
-    const msg91Identifier = findStringByKeys(msg91Result.body, [
-      'identifier',
-      'mobile',
-      'phone',
-      'msisdn',
-      'number',
-    ]);
-
-    const requestedContact = extractLast10Digits(contactNumber);
-    const verifiedContact = extractLast10Digits(msg91Identifier);
-
-    if (verifiedContact && requestedContact && verifiedContact !== requestedContact) {
-      return res.status(400).json({
-        message: 'Verified number does not match checkout contact number',
       });
     }
 
@@ -1061,7 +1069,7 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     const message = String(error?.message || 'Failed to verify OTP');
-    const isConfigError = /MSG91_AUTH_KEY/i.test(message);
+    const isConfigError = /MSG91_AUTH_KEY|MSG91_TEMPLATE_ID/i.test(message);
     return res.status(isConfigError ? 400 : 500).json({
       message: isConfigError ? message : 'Failed to verify OTP',
       error: message,

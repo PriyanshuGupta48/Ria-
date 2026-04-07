@@ -39,11 +39,12 @@ CLOUDINARY_API_SECRET=...
 
 # MSG91 OTP verification
 MSG91_AUTH_KEY=...
+MSG91_TEMPLATE_ID=...
 ```
 
 ## OTP Verification (MSG91)
 
-Checkout OTP verification now uses MSG91 widget access-token verification on the backend.
+Checkout OTP verification now uses normal SMS OTP flow through MSG91 send and verify APIs.
 
 Configured policy:
 
@@ -56,24 +57,18 @@ Configured policy:
 Server-side verification endpoint used:
 
 ```text
-POST https://control.msg91.com/api/v5/widget/verifyAccessToken
+POST https://control.msg91.com/api/v5/otp
+POST https://control.msg91.com/api/v5/otp/verify
 ```
 
-The frontend sends the `accessToken` from MSG91 widget to `/api/orders/verify-otp`, and backend verifies it using `MSG91_AUTH_KEY`.
+Frontend flow is now standard:
 
-Required frontend env values:
+- User enters contact number and clicks `Send/Resend OTP`
+- OTP is delivered by SMS from MSG91
+- User enters 6 digit OTP and clicks verify
+- Backend verifies OTP with MSG91 and issues checkout verification token automatically
 
-```env
-REACT_APP_MSG91_WIDGET_ID=...
-REACT_APP_MSG91_TOKEN_AUTH=...
-REACT_APP_MSG91_WIDGET_SCRIPT_URL=https://control.msg91.com/app/assets/otp-provider/otp-provider.js
-```
-
-`REACT_APP_MSG91_TOKEN_AUTH` is mandatory for `initSendOTP(...)`. If this is missing, widget initialization fails and MSG91 dashboard can continue showing `0 OTP Sent`.
-
-For localhost, keep API base pointed to local backend and whitelist localhost origin in MSG91 widget settings.
-
-For hosted, set the same widget id on deployed frontend and set `MSG91_AUTH_KEY` on hosted backend.
+For localhost and hosted, set `MSG91_AUTH_KEY` and `MSG91_TEMPLATE_ID` in backend environment.
 
 ## Notes
 
