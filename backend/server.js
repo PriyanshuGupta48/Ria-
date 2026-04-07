@@ -3,14 +3,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+dotenv.config();
+
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const cartRoutes = require('./routes/cart');
 const reviewRoutes = require('./routes/reviews');
 const orderRoutes = require('./routes/orders');
 const User = require('./models/User');
-
-dotenv.config();
 
 const app = express();
 

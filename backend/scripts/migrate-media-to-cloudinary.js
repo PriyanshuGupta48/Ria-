@@ -2,14 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+dotenv.config();
+
 const Product = require('../models/Product');
 const Review = require('../models/Review');
 const {
   cloudinaryConfigured,
   uploadLocalPathToCloudinary,
 } = require('../utils/mediaStorage');
-
-dotenv.config();
 
 const uploadsRoot = path.join(__dirname, '..', 'uploads');
 
