@@ -13,7 +13,7 @@ const Cart = () => {
   const [checkoutStep, setCheckoutStep] = useState('contact');
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
-  const [otp, setOtp] = useState('');
+  const [accessToken, setAccessToken] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -54,7 +54,7 @@ const Cart = () => {
   const openCheckoutPopup = () => {
     setCheckoutStep('contact');
     setCustomerName('');
-    setOtp('');
+    setAccessToken('');
     setVerificationToken('');
     setQuote(null);
     setIsCheckoutOpen(true);
@@ -71,7 +71,7 @@ const Cart = () => {
       const response = await axios.post(apiUrl('/api/orders/send-otp'), {
         contactNumber: contactNumber.trim(),
       });
-      toast.success(`OTP sent${response.data?.debugOtp ? ` (Demo OTP: ${response.data.debugOtp})` : ''}`);
+      toast.success(response.data?.message || 'OTP session created. Continue in MSG91 widget.');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to send OTP');
     } finally {
@@ -80,8 +80,8 @@ const Cart = () => {
   };
 
   const verifyOtp = async () => {
-    if (!otp.trim()) {
-      toast.error('Enter the OTP');
+    if (!accessToken.trim()) {
+      toast.error('Enter MSG91 access token');
       return;
     }
 
@@ -89,7 +89,7 @@ const Cart = () => {
     try {
       const response = await axios.post(apiUrl('/api/orders/verify-otp'), {
         contactNumber: contactNumber.trim(),
-        otp: otp.trim(),
+        accessToken: accessToken.trim(),
       });
       setVerificationToken(response.data.verificationToken);
       toast.success('Contact verified successfully');
@@ -292,20 +292,26 @@ const Cart = () => {
                         className="input-field"
                       />
                       <button type="button" className="btn-secondary whitespace-nowrap" onClick={sendOtp} disabled={sendingOtp}>
-                        {sendingOtp ? 'Sending...' : 'Send OTP'}
+                        {sendingOtp ? 'Sending...' : 'Send/Resend OTP'}
                       </button>
                     </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      OTP policy: 6 digits, expires in 45s, max 2 resends with 30s cooldown.
+                    </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Enter OTP</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">MSG91 Access Token</label>
                     <input
                       type="text"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                      placeholder="6 digit OTP"
+                      value={accessToken}
+                      onChange={(e) => setAccessToken(e.target.value.trim())}
+                      placeholder="Paste jwt_token_from_otp_widget"
                       className="input-field"
                     />
+                    <p className="text-xs text-slate-500 mt-1">
+                      After OTP success in MSG91 widget, paste token here and verify. Max verify attempts: 3.
+                    </p>
                   </div>
 
                   <div className="flex justify-end">

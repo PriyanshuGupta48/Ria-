@@ -36,7 +36,30 @@ DELHIVERY_ALLOW_FALLBACK=true
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
+
+# MSG91 OTP verification
+MSG91_AUTH_KEY=...
 ```
+
+## OTP Verification (MSG91)
+
+Checkout OTP verification now uses MSG91 widget access-token verification on the backend.
+
+Configured policy:
+
+- OTP length: `6`
+- OTP expiry: `45 seconds`
+- Max resend attempts: `2`
+- Resend cooldown: `30 seconds`
+- Max verify attempts: `3`
+
+Server-side verification endpoint used:
+
+```text
+POST https://control.msg91.com/api/v5/widget/verifyAccessToken
+```
+
+The frontend sends the `accessToken` from MSG91 widget to `/api/orders/verify-otp`, and backend verifies it using `MSG91_AUTH_KEY`.
 
 ## Notes
 

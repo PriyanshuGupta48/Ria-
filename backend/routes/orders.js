@@ -8,6 +8,14 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const router = express.Router();
 const otpStore = new Map();
 
+const OTP_LENGTH = 6;
+const OTP_EXPIRY_MS = 45 * 1000;
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
+const OTP_MAX_RESEND_ATTEMPTS = 2;
+const OTP_MAX_VERIFY_ATTEMPTS = 3;
+const OTP_VERIFIED_TOKEN_TTL_MS = 15 * 60 * 1000;
+const MSG91_VERIFY_ACCESS_TOKEN_URL = 'https://control.msg91.com/api/v5/widget/verifyAccessToken';
+
 const DELHIVERY_PARTNER_NAME = 'Delhivery One';
 const DEFAULT_PRODUCT_WEIGHT_GRAMS = 500;
 const PACKAGING_WEIGHT_GRAMS = 100;
@@ -76,6 +84,76 @@ const getMonthBounds = () => {
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   return { start, end };
+};
+
+const buildOtpSessionKey = (userId, contactNumber) => `${userId}:${contactNumber}`;
+
+const getOtpState = (key) => {
+  const state = otpStore.get(key);
+  if (!state) {
+    return null;
+  }
+
+  if (state.verified && state.verificationExpiresAt && state.verificationExpiresAt < Date.now()) {
+    otpStore.delete(key);
+    return null;
+  }
+
+  return state;
+};
+
+const isMsg91VerificationSuccess = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const booleanSignals = [payload.success, payload.status, payload.valid]
+    .some((value) => value === true || value === 'true');
+
+  if (booleanSignals) {
+    return true;
+  }
+
+  const stringSignals = [payload.type, payload.message, payload.response]
+    .map((value) => String(value || '').toLowerCase());
+
+  return stringSignals.some((value) => value.includes('success') || value.includes('verified') || value.includes('valid'));
+};
+
+const verifyMsg91AccessToken = async (accessToken) => {
+  const authKey = String(process.env.MSG91_AUTH_KEY || '').trim();
+
+  if (!authKey) {
+    throw new Error('MSG91_AUTH_KEY is missing. Configure it in backend environment variables.');
+  }
+
+  const response = await fetch(MSG91_VERIFY_ACCESS_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      authkey: authKey,
+      'access-token': accessToken,
+    }),
+  });
+
+  const text = await response.text();
+  let body = {};
+
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch (error) {
+      body = { raw: text };
+    }
+  }
+
+  return {
+    ok: response.ok,
+    body,
+  };
 };
 
 const normalizeAddress = (rawAddress = {}) => ({
@@ -801,18 +879,74 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Contact number must be a valid 10 digit mobile number' });
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const key = `${req.user.userId}:${contactNumber}`;
+    const key = buildOtpSessionKey(req.user.userId, contactNumber);
+    const now = Date.now();
+    const existingState = getOtpState(key);
 
-    otpStore.set(key, {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000,
+    if (!existingState) {
+      otpStore.set(key, {
+        createdAt: now,
+        otpExpiresAt: now + OTP_EXPIRY_MS,
+        nextResendAt: now + OTP_RESEND_COOLDOWN_MS,
+        resendAttempts: 0,
+        verifyAttempts: 0,
+        verified: false,
+        verificationToken: '',
+        verificationExpiresAt: 0,
+      });
+
+      return res.json({
+        message: 'OTP session created. Complete verification in MSG91 widget.',
+        meta: {
+          otpLength: OTP_LENGTH,
+          otpExpirySeconds: OTP_EXPIRY_MS / 1000,
+          maxResendAttempts: OTP_MAX_RESEND_ATTEMPTS,
+          resendCooldownSeconds: OTP_RESEND_COOLDOWN_MS / 1000,
+          maxVerifyAttempts: OTP_MAX_VERIFY_ATTEMPTS,
+          remainingResends: OTP_MAX_RESEND_ATTEMPTS,
+        },
+      });
+    }
+
+    if (existingState.verified && existingState.verificationExpiresAt > now) {
+      return res.status(400).json({ message: 'Contact number already verified for this checkout session.' });
+    }
+
+    if (existingState.resendAttempts >= OTP_MAX_RESEND_ATTEMPTS) {
+      return res.status(429).json({
+        message: 'Maximum resend attempts reached. Start checkout again to request a fresh OTP.',
+      });
+    }
+
+    if (existingState.nextResendAt > now) {
+      const retryAfterSeconds = Math.ceil((existingState.nextResendAt - now) / 1000);
+      return res.status(429).json({
+        message: `Please wait ${retryAfterSeconds}s before resending OTP.`,
+        retryAfterSeconds,
+      });
+    }
+
+    const updatedState = {
+      ...existingState,
+      otpExpiresAt: now + OTP_EXPIRY_MS,
+      nextResendAt: now + OTP_RESEND_COOLDOWN_MS,
+      resendAttempts: existingState.resendAttempts + 1,
+      verifyAttempts: 0,
       verified: false,
       verificationToken: '',
-    });
+      verificationExpiresAt: 0,
+    };
 
-    // Demo mode: OTP is returned for local testing (replace with SMS provider in production).
-    return res.json({ message: 'OTP sent successfully', debugOtp: otp });
+    otpStore.set(key, updatedState);
+
+    return res.json({
+      message: 'OTP resend allowed. Trigger resend from MSG91 widget now.',
+      meta: {
+        remainingResends: Math.max(0, OTP_MAX_RESEND_ATTEMPTS - updatedState.resendAttempts),
+        otpExpirySeconds: OTP_EXPIRY_MS / 1000,
+        resendCooldownSeconds: OTP_RESEND_COOLDOWN_MS / 1000,
+      },
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to send OTP', error: error.message });
   }
@@ -821,29 +955,67 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
 router.post('/verify-otp', authMiddleware, async (req, res) => {
   try {
     const contactNumber = String(req.body.contactNumber || '').trim();
-    const otp = String(req.body.otp || '').trim();
-    const key = `${req.user.userId}:${contactNumber}`;
-    const otpEntry = otpStore.get(key);
+    const accessToken = String(req.body.accessToken || req.body.access_token || '').trim();
+    const key = buildOtpSessionKey(req.user.userId, contactNumber);
+    const otpEntry = getOtpState(key);
 
-    if (!otpEntry || otpEntry.expiresAt < Date.now()) {
+    if (!/^[A-Za-z0-9._-]{16,}$/.test(accessToken)) {
+      return res.status(400).json({ message: 'Valid MSG91 access token is required' });
+    }
+
+    if (!otpEntry) {
+      return res.status(400).json({ message: 'OTP session not found. Send OTP first.' });
+    }
+
+    if (otpEntry.otpExpiresAt < Date.now()) {
       return res.status(400).json({ message: 'OTP expired or not found. Please resend OTP.' });
     }
 
-    if (otpEntry.otp !== otp) {
-      return res.status(400).json({ message: 'Invalid OTP' });
+    if (otpEntry.verifyAttempts >= OTP_MAX_VERIFY_ATTEMPTS) {
+      return res.status(429).json({ message: 'Maximum OTP verify attempts reached. Please resend OTP.' });
+    }
+
+    const msg91Result = await verifyMsg91AccessToken(accessToken);
+    const verificationSuccessful = msg91Result.ok && isMsg91VerificationSuccess(msg91Result.body);
+
+    if (!verificationSuccessful) {
+      const nextAttemptCount = otpEntry.verifyAttempts + 1;
+      otpStore.set(key, {
+        ...otpEntry,
+        verifyAttempts: nextAttemptCount,
+      });
+
+      const remainingAttempts = Math.max(0, OTP_MAX_VERIFY_ATTEMPTS - nextAttemptCount);
+      return res.status(400).json({
+        message: remainingAttempts > 0
+          ? `OTP verification failed. ${remainingAttempts} attempt(s) left.`
+          : 'OTP verification failed. Maximum verify attempts reached, please resend OTP.',
+      });
     }
 
     const verificationToken = crypto.randomBytes(18).toString('hex');
     otpStore.set(key, {
       ...otpEntry,
       verified: true,
+      verifyAttempts: otpEntry.verifyAttempts,
       verificationToken,
-      expiresAt: Date.now() + 15 * 60 * 1000,
+      verificationExpiresAt: Date.now() + OTP_VERIFIED_TOKEN_TTL_MS,
     });
 
-    return res.json({ message: 'OTP verified', verificationToken });
+    return res.json({
+      message: 'OTP verified',
+      verificationToken,
+      meta: {
+        verificationExpiresInSeconds: OTP_VERIFIED_TOKEN_TTL_MS / 1000,
+      },
+    });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to verify OTP', error: error.message });
+    const message = String(error?.message || 'Failed to verify OTP');
+    const isConfigError = /MSG91_AUTH_KEY/i.test(message);
+    return res.status(isConfigError ? 400 : 500).json({
+      message: isConfigError ? message : 'Failed to verify OTP',
+      error: message,
+    });
   }
 });
 
@@ -878,8 +1050,8 @@ router.post('/place', authMiddleware, async (req, res) => {
     const { customerName, contactNumber, verificationToken, address, paymentMethod } = req.body;
     const cleanCustomerName = String(customerName || '').trim();
     const cleanContact = String(contactNumber || '').trim();
-    const key = `${req.user.userId}:${cleanContact}`;
-    const otpEntry = otpStore.get(key);
+    const key = buildOtpSessionKey(req.user.userId, cleanContact);
+    const otpEntry = getOtpState(key);
 
     if (!cleanCustomerName) {
       return res.status(400).json({ message: 'Customer name is required' });
@@ -889,7 +1061,7 @@ router.post('/place', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'A valid contact number is required' });
     }
 
-    if (!otpEntry || !otpEntry.verified || otpEntry.verificationToken !== verificationToken || otpEntry.expiresAt < Date.now()) {
+    if (!otpEntry || !otpEntry.verified || otpEntry.verificationToken !== verificationToken || otpEntry.verificationExpiresAt < Date.now()) {
       return res.status(400).json({ message: 'OTP verification is required before placing the order' });
     }
 
