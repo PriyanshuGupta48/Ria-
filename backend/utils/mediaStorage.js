@@ -72,6 +72,39 @@ const uploadToCloudinary = (file, folder = '') =>
     stream.end(file.buffer);
   });
 
+const uploadLocalPathToCloudinary = (filePath, options = {}) => {
+  if (!cloudinaryConfigured) {
+    throw new Error('Cloudinary is not configured');
+  }
+
+  const folder = String(options.folder || '').replace(/^\/+|\/+$/g, '');
+
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      {
+        folder,
+        resource_type: 'image',
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve({
+          url: result.secure_url,
+          provider: 'cloudinary',
+          publicId: result.public_id,
+        });
+      }
+    );
+  });
+};
+
 const parseCloudinaryPublicId = (url) => {
   if (!url || typeof url !== 'string' || !url.includes('res.cloudinary.com')) {
     return null;
@@ -165,6 +198,7 @@ const deleteImageAsset = async (imagePathOrUrl) => {
 
 module.exports = {
   uploadImage,
+  uploadLocalPathToCloudinary,
   deleteImageAsset,
   cloudinaryConfigured,
 };

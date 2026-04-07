@@ -31,6 +31,11 @@ DELHIVERY_ONE_AUTH_SCHEME=Token
 DELHIVERY_ORIGIN_PINCODE=110001
 DELHIVERY_DEFAULT_WEIGHT_KG=0.5
 DELHIVERY_ALLOW_FALLBACK=true
+
+# Media storage
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
 ```
 
 ## Notes
@@ -40,3 +45,13 @@ DELHIVERY_ALLOW_FALLBACK=true
 - The backend now calls Delhivery's documented shipping-cost API at `api/kinko/v1/invoice/charges/.json`.
 - You still need the origin pickup pincode in `DELHIVERY_ORIGIN_PINCODE` because this API calculates freight from source pin to destination pin.
 - If Delhivery changes the host for your account, update only `DELHIVERY_ONE_QUOTE_URL`.
+
+## Media Migration
+
+After configuring Cloudinary, run this once from the backend folder to move existing local uploads into Cloudinary and rewrite stored image URLs:
+
+```bash
+npm run migrate:media
+```
+
+This updates product images and review images already stored in MongoDB.
