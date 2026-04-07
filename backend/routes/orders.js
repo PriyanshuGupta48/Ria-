@@ -156,6 +156,15 @@ const verifyMsg91AccessToken = async (accessToken) => {
   };
 };
 
+const extractLast10Digits = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.length < 10) {
+    return '';
+  }
+
+  return digits.slice(-10);
+};
+
 const normalizeAddress = (rawAddress = {}) => ({
   houseNo: String(rawAddress.houseNo || '').trim(),
   laneNo: String(rawAddress.laneNo || '').trim(),
@@ -990,6 +999,23 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
         message: remainingAttempts > 0
           ? `OTP verification failed. ${remainingAttempts} attempt(s) left.`
           : 'OTP verification failed. Maximum verify attempts reached, please resend OTP.',
+      });
+    }
+
+    const msg91Identifier = findStringByKeys(msg91Result.body, [
+      'identifier',
+      'mobile',
+      'phone',
+      'msisdn',
+      'number',
+    ]);
+
+    const requestedContact = extractLast10Digits(contactNumber);
+    const verifiedContact = extractLast10Digits(msg91Identifier);
+
+    if (verifiedContact && requestedContact && verifiedContact !== requestedContact) {
+      return res.status(400).json({
+        message: 'Verified number does not match checkout contact number',
       });
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
@@ -30,6 +30,163 @@ const Cart = () => {
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [placingOrder, setPlacingOrder] = useState(false);
+  const msg91WidgetId = useMemo(() => String(process.env.REACT_APP_MSG91_WIDGET_ID || '').trim(), []);
+  const msg91WidgetScriptUrl = useMemo(
+    () => String(process.env.REACT_APP_MSG91_WIDGET_SCRIPT_URL || 'https://control.msg91.com/app/assets/otp-provider/otp-provider.js').trim(),
+    []
+  );
+
+  const getAccessTokenFromPayload = (payload) => {
+    if (!payload) {
+      return '';
+    }
+
+    if (typeof payload === 'string') {
+      return payload.trim();
+    }
+
+    if (typeof payload !== 'object') {
+      return '';
+    }
+
+    const queue = [payload];
+    const seen = new Set();
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current || typeof current !== 'object') {
+        continue;
+      }
+
+      if (seen.has(current)) {
+        continue;
+      }
+      seen.add(current);
+
+      for (const [key, value] of Object.entries(current)) {
+        const lower = String(key).toLowerCase();
+        if (['access-token', 'accesstoken', 'token', 'jwt', 'jwttoken'].includes(lower)) {
+          const tokenValue = String(value || '').trim();
+          if (tokenValue) {
+            return tokenValue;
+          }
+        }
+
+        if (value && typeof value === 'object') {
+          queue.push(value);
+        }
+      }
+    }
+
+    return '';
+  };
+
+  const loadMsg91Script = async () => {
+    if (window.initSendOTP || window.SendOtpVerification || window.sendOtp) {
+      return;
+    }
+
+    await new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[data-msg91-sdk="true"]`);
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('Failed to load MSG91 SDK')), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = msg91WidgetScriptUrl;
+      script.async = true;
+      script.defer = true;
+      script.dataset.msg91Sdk = 'true';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load MSG91 SDK'));
+      document.body.appendChild(script);
+    });
+  };
+
+  const verifyWithAccessToken = async (token) => {
+    if (!token) {
+      return;
+    }
+
+    setAccessToken(token);
+    setVerifyingOtp(true);
+    try {
+      const response = await axios.post(apiUrl('/api/orders/verify-otp'), {
+        contactNumber: contactNumber.trim(),
+        accessToken: token,
+      });
+      setVerificationToken(response.data.verificationToken);
+      toast.success('Contact verified successfully');
+      setCheckoutStep('address');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'OTP verification failed');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const openMsg91Widget = async () => {
+    if (!msg91WidgetId) {
+      toast.error('MSG91 widget is not configured. Set REACT_APP_MSG91_WIDGET_ID.');
+      return;
+    }
+
+    if (!/^\d{10}$/.test(contactNumber.trim())) {
+      toast.error('Enter a valid 10 digit contact number first');
+      return;
+    }
+
+    const completeSuccess = async (payload) => {
+      const token = getAccessTokenFromPayload(payload);
+      if (!token) {
+        toast.error('MSG91 OTP completed but access token was not found.');
+        return;
+      }
+
+      await verifyWithAccessToken(token);
+    };
+
+    const completeFailure = (error) => {
+      const msg = String(error?.message || error?.error || 'OTP not completed');
+      toast.error(msg);
+    };
+
+    try {
+      await loadMsg91Script();
+
+      const identifier = `91${contactNumber.trim()}`;
+      const config = {
+        widgetId: msg91WidgetId,
+        identifier,
+        success: completeSuccess,
+        failure: completeFailure,
+      };
+
+      if (typeof window.initSendOTP === 'function') {
+        window.initSendOTP(config);
+        return;
+      }
+
+      if (typeof window.SendOtpVerification === 'function') {
+        const instance = new window.SendOtpVerification(config);
+        if (typeof instance.initiate === 'function') {
+          instance.initiate();
+          return;
+        }
+      }
+
+      if (typeof window.sendOtp === 'function') {
+        window.sendOtp(config);
+        return;
+      }
+
+      toast.error('MSG91 widget SDK loaded, but no supported init function was found.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to open MSG91 widget');
+    }
+  };
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -85,20 +242,7 @@ const Cart = () => {
       return;
     }
 
-    setVerifyingOtp(true);
-    try {
-      const response = await axios.post(apiUrl('/api/orders/verify-otp'), {
-        contactNumber: contactNumber.trim(),
-        accessToken: accessToken.trim(),
-      });
-      setVerificationToken(response.data.verificationToken);
-      toast.success('Contact verified successfully');
-      setCheckoutStep('address');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'OTP verification failed');
-    } finally {
-      setVerifyingOtp(false);
-    }
+    await verifyWithAccessToken(accessToken.trim());
   };
 
   const proceedToPayment = async () => {
@@ -298,6 +442,11 @@ const Cart = () => {
                     <p className="text-xs text-slate-500 mt-1">
                       OTP policy: 6 digits, expires in 45s, max 2 resends with 30s cooldown.
                     </p>
+                    <div className="mt-2">
+                      <button type="button" className="btn-primary" onClick={openMsg91Widget}>
+                        Open MSG91 OTP Widget
+                      </button>
+                    </div>
                   </div>
 
                   <div>

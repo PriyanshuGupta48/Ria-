@@ -61,6 +61,17 @@ POST https://control.msg91.com/api/v5/widget/verifyAccessToken
 
 The frontend sends the `accessToken` from MSG91 widget to `/api/orders/verify-otp`, and backend verifies it using `MSG91_AUTH_KEY`.
 
+Required frontend env values:
+
+```env
+REACT_APP_MSG91_WIDGET_ID=...
+REACT_APP_MSG91_WIDGET_SCRIPT_URL=https://control.msg91.com/app/assets/otp-provider/otp-provider.js
+```
+
+For localhost, keep API base pointed to local backend and whitelist localhost origin in MSG91 widget settings.
+
+For hosted, set the same widget id on deployed frontend and set `MSG91_AUTH_KEY` on hosted backend.
+
 ## Notes
 
 - `DELHIVERY_ALLOW_FALLBACK=true` is useful for local development when API credentials are missing.
