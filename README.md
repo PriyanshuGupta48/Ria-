@@ -65,8 +65,11 @@ Required frontend env values:
 
 ```env
 REACT_APP_MSG91_WIDGET_ID=...
+REACT_APP_MSG91_TOKEN_AUTH=...
 REACT_APP_MSG91_WIDGET_SCRIPT_URL=https://control.msg91.com/app/assets/otp-provider/otp-provider.js
 ```
+
+`REACT_APP_MSG91_TOKEN_AUTH` is mandatory for `initSendOTP(...)`. If this is missing, widget initialization fails and MSG91 dashboard can continue showing `0 OTP Sent`.
 
 For localhost, keep API base pointed to local backend and whitelist localhost origin in MSG91 widget settings.
 

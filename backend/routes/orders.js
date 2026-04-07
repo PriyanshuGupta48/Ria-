@@ -14,6 +14,7 @@ const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
 const OTP_MAX_RESEND_ATTEMPTS = 2;
 const OTP_MAX_VERIFY_ATTEMPTS = 3;
 const OTP_VERIFIED_TOKEN_TTL_MS = 15 * 60 * 1000;
+const OTP_SESSION_TTL_MS = 15 * 60 * 1000;
 const MSG91_VERIFY_ACCESS_TOKEN_URL = 'https://control.msg91.com/api/v5/widget/verifyAccessToken';
 
 const DELHIVERY_PARTNER_NAME = 'Delhivery One';
@@ -88,9 +89,26 @@ const getMonthBounds = () => {
 
 const buildOtpSessionKey = (userId, contactNumber) => `${userId}:${contactNumber}`;
 
+const createOtpState = (now = Date.now()) => ({
+  createdAt: now,
+  sessionExpiresAt: now + OTP_SESSION_TTL_MS,
+  otpExpiresAt: now + OTP_EXPIRY_MS,
+  nextResendAt: now + OTP_RESEND_COOLDOWN_MS,
+  resendAttempts: 0,
+  verifyAttempts: 0,
+  verified: false,
+  verificationToken: '',
+  verificationExpiresAt: 0,
+});
+
 const getOtpState = (key) => {
   const state = otpStore.get(key);
   if (!state) {
+    return null;
+  }
+
+  if (state.sessionExpiresAt && state.sessionExpiresAt < Date.now()) {
+    otpStore.delete(key);
     return null;
   }
 
@@ -893,16 +911,7 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
     const existingState = getOtpState(key);
 
     if (!existingState) {
-      otpStore.set(key, {
-        createdAt: now,
-        otpExpiresAt: now + OTP_EXPIRY_MS,
-        nextResendAt: now + OTP_RESEND_COOLDOWN_MS,
-        resendAttempts: 0,
-        verifyAttempts: 0,
-        verified: false,
-        verificationToken: '',
-        verificationExpiresAt: 0,
-      });
+      otpStore.set(key, createOtpState(now));
 
       return res.json({
         message: 'OTP session created. Complete verification in MSG91 widget.',
@@ -919,6 +928,21 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
 
     if (existingState.verified && existingState.verificationExpiresAt > now) {
       return res.status(400).json({ message: 'Contact number already verified for this checkout session.' });
+    }
+
+    if (existingState.resendAttempts >= OTP_MAX_RESEND_ATTEMPTS && existingState.otpExpiresAt < now) {
+      otpStore.set(key, createOtpState(now));
+      return res.json({
+        message: 'Previous OTP cycle expired. New OTP session created.',
+        meta: {
+          otpLength: OTP_LENGTH,
+          otpExpirySeconds: OTP_EXPIRY_MS / 1000,
+          maxResendAttempts: OTP_MAX_RESEND_ATTEMPTS,
+          resendCooldownSeconds: OTP_RESEND_COOLDOWN_MS / 1000,
+          maxVerifyAttempts: OTP_MAX_VERIFY_ATTEMPTS,
+          remainingResends: OTP_MAX_RESEND_ATTEMPTS,
+        },
+      });
     }
 
     if (existingState.resendAttempts >= OTP_MAX_RESEND_ATTEMPTS) {

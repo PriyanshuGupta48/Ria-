@@ -31,6 +31,7 @@ const Cart = () => {
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [placingOrder, setPlacingOrder] = useState(false);
   const msg91WidgetId = useMemo(() => String(process.env.REACT_APP_MSG91_WIDGET_ID || '').trim(), []);
+  const msg91TokenAuth = useMemo(() => String(process.env.REACT_APP_MSG91_TOKEN_AUTH || '').trim(), []);
   const msg91WidgetScriptUrl = useMemo(
     () => String(process.env.REACT_APP_MSG91_WIDGET_SCRIPT_URL || 'https://control.msg91.com/app/assets/otp-provider/otp-provider.js').trim(),
     []
@@ -133,6 +134,11 @@ const Cart = () => {
       return;
     }
 
+    if (!msg91TokenAuth) {
+      toast.error('MSG91 tokenAuth is missing. Set REACT_APP_MSG91_TOKEN_AUTH.');
+      return;
+    }
+
     if (!/^\d{10}$/.test(contactNumber.trim())) {
       toast.error('Enter a valid 10 digit contact number first');
       return;
@@ -159,6 +165,7 @@ const Cart = () => {
       const identifier = `91${contactNumber.trim()}`;
       const config = {
         widgetId: msg91WidgetId,
+        tokenAuth: msg91TokenAuth,
         identifier,
         success: completeSuccess,
         failure: completeFailure,
@@ -229,6 +236,7 @@ const Cart = () => {
         contactNumber: contactNumber.trim(),
       });
       toast.success(response.data?.message || 'OTP session created. Continue in MSG91 widget.');
+      await openMsg91Widget();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to send OTP');
     } finally {
@@ -443,7 +451,7 @@ const Cart = () => {
                       OTP policy: 6 digits, expires in 45s, max 2 resends with 30s cooldown.
                     </p>
                     <div className="mt-2">
-                      <button type="button" className="btn-primary" onClick={openMsg91Widget}>
+                      <button type="button" className="btn-primary" onClick={openMsg91Widget} disabled={sendingOtp}>
                         Open MSG91 OTP Widget
                       </button>
                     </div>
