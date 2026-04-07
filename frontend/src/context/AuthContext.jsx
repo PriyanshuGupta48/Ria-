@@ -19,6 +19,21 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
 
+    if (!isLocalhost) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      fetch(apiUrl('/api/health'), {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller.signal,
+      }).catch(() => {
+        // Non-blocking warm-up request.
+      }).finally(() => {
+        clearTimeout(timeout);
+      });
+    }
+
     if (isLocalhost && !shouldKeepLocalAuth) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');

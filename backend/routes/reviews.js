@@ -1,33 +1,15 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { authMiddleware } = require('../middleware/auth');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
+const { uploadImage, deleteImageAsset } = require('../utils/mediaStorage');
 
 const router = express.Router();
 
-const reviewsUploadDir = path.join(__dirname, '..', 'uploads', 'reviews');
-if (!fs.existsSync(reviewsUploadDir)) {
-  fs.mkdirSync(reviewsUploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: reviewsUploadDir,
-  filename: (req, file, cb) => {
-    const extension = path.extname(file.originalname).toLowerCase();
-    const safeBase = path
-      .basename(file.originalname, extension)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'review';
-    cb(null, `${safeBase}-${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|gif|webp/;
@@ -40,15 +22,8 @@ const upload = multer({
   },
 });
 
-const deleteReviewImage = (imagePath) => {
-  if (!imagePath || typeof imagePath !== 'string' || !imagePath.startsWith('/uploads/')) {
-    return;
-  }
-
-  const absolutePath = path.join(__dirname, '..', imagePath.replace(/^\//, ''));
-  fs.unlink(absolutePath, () => {
-    // Ignore cleanup errors; review operations should not fail because of stale files.
-  });
+const deleteReviewImage = async (imagePath) => {
+  await deleteImageAsset(imagePath);
 };
 
 // Get all reviews for a product
@@ -73,7 +48,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
     const rating = Number(req.body.rating);
     const userId = req.user.userId;
     const email = req.user.email;
-    const uploadedImage = req.file ? `/uploads/reviews/${req.file.filename}` : '';
+    const uploadedImage = req.file ? (await uploadImage(req.file, { folder: 'reviews' })).url : '';
 
     // Validate inputs
     if (!productId || !rating || !comment) {
@@ -102,10 +77,10 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
       existingReview.comment = comment;
 
       if (uploadedImage) {
-        deleteReviewImage(existingReview.image);
+        await deleteReviewImage(existingReview.image);
         existingReview.image = uploadedImage;
       } else if (removeImage === 'true') {
-        deleteReviewImage(existingReview.image);
+        await deleteReviewImage(existingReview.image);
         existingReview.image = '';
       }
 
@@ -148,7 +123,7 @@ router.delete('/:reviewId', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'You can only delete your own reviews' });
     }
 
-    deleteReviewImage(review.image);
+    await deleteReviewImage(review.image);
     await Review.findByIdAndDelete(reviewId);
     res.json({ message: 'Review deleted successfully' });
   } catch (error) {

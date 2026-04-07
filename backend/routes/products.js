@@ -1,29 +1,14 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const Product = require('../models/Product');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { uploadImage, deleteImageAsset } = require('../utils/mediaStorage');
 
 const router = express.Router();
 
-// Configure multer for image upload
-const storage = multer.diskStorage({
-  destination: './uploads/',
-  filename: (req, file, cb) => {
-    const extension = path.extname(file.originalname).toLowerCase();
-    const baseName = path
-      .basename(file.originalname, extension)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'image';
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${baseName}-${uniqueSuffix}${extension}`);
-  }
-});
-
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5000000 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|gif/;
@@ -80,7 +65,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-const normalizeUploadedImages = (files = []) => files.map(file => `/uploads/${file.filename}`);
+const normalizeUploadedImages = async (files = []) => {
+  const uploaded = await Promise.all(files.map((file) => uploadImage(file, { folder: 'products' })));
+  return uploaded.map((item) => item.url);
+};
 
 const parseRemovedImages = (rawValue) => {
   if (!rawValue) return [];
@@ -101,15 +89,8 @@ const parseRemovedImages = (rawValue) => {
   return [];
 };
 
-const removeImageFile = (imagePath) => {
-  if (!imagePath || typeof imagePath !== 'string' || !imagePath.startsWith('/uploads/')) {
-    return;
-  }
-
-  const filePath = path.join(__dirname, '..', imagePath.replace(/^\//, ''));
-  fs.unlink(filePath, () => {
-    // File cleanup should not block product updates.
-  });
+const removeImageFile = async (imagePath) => {
+  await deleteImageAsset(imagePath);
 };
 
 const parseProductDetails = (rawDetails) => {
@@ -185,7 +166,7 @@ router.post('/', authMiddleware, adminMiddleware, upload.array('images', 10), as
       return res.status(400).json({ message: 'At least one image is required' });
     }
 
-    const images = normalizeUploadedImages(req.files);
+    const images = await normalizeUploadedImages(req.files);
     
     const product = new Product({
       name,
@@ -269,11 +250,11 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.array('images', 10), 
 
     if (removedSet.size > 0) {
       existingImages = existingImages.filter((imagePath) => !removedSet.has(imagePath));
-      removedImages.forEach(removeImageFile);
+      await Promise.all(removedImages.map((imagePath) => removeImageFile(imagePath)));
     }
 
     if (req.files && req.files.length > 0) {
-      const newImages = normalizeUploadedImages(req.files);
+      const newImages = await normalizeUploadedImages(req.files);
       product.images = [...existingImages, ...newImages];
     } else {
       product.images = existingImages;

@@ -19,7 +19,7 @@ import {
   IndianRupee,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { apiUrl } from '../config/api';
+import { apiUrl, assetUrl } from '../config/api';
 
 const API_BASE = apiUrl();
 
@@ -684,7 +684,7 @@ const Admin = () => {
                     .map((img, index) => (
                       <div key={img + index} className="relative h-16 w-16 rounded-xl overflow-hidden border border-rose-100 bg-white">
                         <img
-                          src={`${API_BASE}${img}`}
+                          src={assetUrl(img)}
                           alt={`Existing ${index + 1}`}
                           className="h-full w-full object-cover"
                         />
@@ -760,7 +760,7 @@ const Admin = () => {
               }`}
             >
               <img
-                src={`${API_BASE}${getProductImages(product)[0] || ''}`}
+                src={assetUrl(getProductImages(product)[0] || '')}
                 alt={product.name}
                 className="w-16 h-16 object-cover rounded"
               />
@@ -879,7 +879,7 @@ const Admin = () => {
               {(order.items || []).map((item, index) => (
                 <div key={`${order._id}-${index}`} className="rounded-xl border border-rose-100 p-3 flex items-center gap-3 bg-rose-50">
                   <img
-                    src={`${API_BASE}${item.product?.images?.[0] || item.product?.image || ''}`}
+                    src={assetUrl(item.product?.images?.[0] || item.product?.image || '')}
                     alt={item.product?.name || 'Product'}
                     className="h-12 w-12 rounded-lg object-cover"
                   />
