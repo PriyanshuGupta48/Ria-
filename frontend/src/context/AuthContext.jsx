@@ -9,6 +9,29 @@ export const useAuth = () => useContext(AuthContext);
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 const shouldKeepLocalAuth = process.env.REACT_APP_KEEP_LOCAL_AUTH === 'true';
+let backendWarmPromise = null;
+
+const warmBackend = () => {
+  if (backendWarmPromise) {
+    return backendWarmPromise;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  backendWarmPromise = fetch(apiUrl('/api/health'), {
+    method: 'GET',
+    cache: 'no-store',
+    signal: controller.signal,
+  })
+    .catch(() => null)
+    .finally(() => {
+      clearTimeout(timeout);
+      backendWarmPromise = null;
+    });
+
+  return backendWarmPromise;
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -20,18 +43,7 @@ export const AuthProvider = ({ children }) => {
     const userData = localStorage.getItem('user');
 
     if (!isLocalhost) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-
-      fetch(apiUrl('/api/health'), {
-        method: 'GET',
-        cache: 'no-store',
-        signal: controller.signal,
-      }).catch(() => {
-        // Non-blocking warm-up request.
-      }).finally(() => {
-        clearTimeout(timeout);
-      });
+      warmBackend();
     }
 
     if (isLocalhost && !shouldKeepLocalAuth) {
@@ -50,6 +62,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      await warmBackend();
       const response = await axios.post(apiUrl('/api/auth/login'), {
         email: normalizeEmail(email),
         password
@@ -69,6 +82,7 @@ export const AuthProvider = ({ children }) => {
 
   const adminLogin = async (email, password) => {
     try {
+      await warmBackend();
       const response = await axios.post(apiUrl('/api/auth/admin-login'), {
         email: normalizeEmail(email),
         password
@@ -88,6 +102,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password) => {
     try {
+      await warmBackend();
       const response = await axios.post(apiUrl('/api/auth/register'), {
         email: normalizeEmail(email),
         password

@@ -25,6 +25,10 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
 
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true });
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);

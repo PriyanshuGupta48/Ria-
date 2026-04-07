@@ -72,3 +72,15 @@ For Cloudinary to work in both local and hosted environments, set the same three
 - `CLOUDINARY_API_SECRET`
 
 Local frontend should point at the local backend URL, while the deployed frontend should point at the hosted backend URL through `REACT_APP_API_URL` or `REACT_APP_API_BASE_URL`.
+
+## Uptime Ping
+
+If you want to reduce Render cold starts, point an external uptime monitor to:
+
+```text
+https://dhaaga-backend.onrender.com/api/ping
+```
+
+Recommended interval: every 5 to 10 minutes.
+
+This does not change the app flow. It just keeps the backend warm so the first login after idle is faster.
