@@ -263,7 +263,7 @@ const Cart = () => {
             <div className="px-4 sm:px-6 pt-3 sm:pt-4">
               <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-semibold">
                 <div className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center ${checkoutStep === 'contact' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
-                  1. Contact + OTP
+                  1. Contact OTP
                 </div>
                 <div className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center ${checkoutStep === 'address' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
                   2. Address
@@ -303,7 +303,7 @@ const Cart = () => {
                       </button>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      OTP will be sent to your account email. Policy: 6 digits, expires in 45s, max 2 resends with 30s cooldown.
+                      OTP policy: 6 digits, expires in 45s, max 2 resends with 30s cooldown.
                     </p>
                   </div>
 
@@ -317,7 +317,7 @@ const Cart = () => {
                       className="input-field"
                     />
                     <p className="text-xs text-slate-500 mt-1">
-                      Enter the OTP received on email and click verify. Max verify attempts: 3.
+                      Enter the OTP received on SMS and click verify. Max verify attempts: 3.
                     </p>
                   </div>
 
