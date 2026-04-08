@@ -81,9 +81,11 @@ const Cart = () => {
       setQuote(response.data);
       setCheckoutStep('payment');
     } catch (error) {
+      const backendMessage = String(error.response?.data?.message || '').trim();
+      const backendError = String(error.response?.data?.error || '').trim();
+      const detailedError = backendError || backendMessage;
       const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
+        detailedError ||
         'Failed to calculate delivery charges';
       toast.error(errorMessage, { id: 'quote-error' });
     } finally {
