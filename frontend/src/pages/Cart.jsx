@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { apiUrl, assetUrl } from '../config/api';
 
@@ -13,10 +12,6 @@ const Cart = () => {
   const [checkoutStep, setCheckoutStep] = useState('contact');
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [verificationToken, setVerificationToken] = useState('');
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [address, setAddress] = useState({
     houseNo: '',
     laneNo: '',
@@ -30,26 +25,7 @@ const Cart = () => {
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [placingOrder, setPlacingOrder] = useState(false);
-  const verifyOtpCode = async (otpCode) => {
-    if (!otpCode) {
-      return;
-    }
 
-    setVerifyingOtp(true);
-    try {
-      const response = await axios.post(apiUrl('/api/orders/verify-otp'), {
-        contactNumber: contactNumber.trim(),
-        otp: otpCode,
-      });
-      setVerificationToken(response.data.verificationToken);
-      toast.success('Contact verified successfully');
-      setCheckoutStep('address');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'OTP verification failed');
-    } finally {
-      setVerifyingOtp(false);
-    }
-  };
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -61,7 +37,6 @@ const Cart = () => {
     const success = await placeOrder({
       customerName: customerName.trim(),
       contactNumber,
-      verificationToken,
       address,
       paymentMethod,
     });
@@ -74,38 +49,23 @@ const Cart = () => {
   const openCheckoutPopup = () => {
     setCheckoutStep('contact');
     setCustomerName('');
-    setOtp('');
-    setVerificationToken('');
+    setContactNumber('');
     setQuote(null);
     setIsCheckoutOpen(true);
   };
 
-  const sendOtp = async () => {
+  const continueToAddress = () => {
+    if (!customerName.trim()) {
+      toast.error('Enter your full name');
+      return;
+    }
+
     if (!/^\d{10}$/.test(contactNumber.trim())) {
       toast.error('Enter a valid 10 digit contact number');
       return;
     }
 
-    setSendingOtp(true);
-    try {
-      const response = await axios.post(apiUrl('/api/orders/send-otp'), {
-        contactNumber: contactNumber.trim(),
-      });
-      toast.success(response.data?.message || 'OTP sent successfully');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const verifyOtp = async () => {
-    if (!/^\d{6}$/.test(otp.trim())) {
-      toast.error('Enter valid 6 digit OTP');
-      return;
-    }
-
-    await verifyOtpCode(otp.trim());
+    setCheckoutStep('address');
   };
 
   const proceedToPayment = async () => {
@@ -263,7 +223,7 @@ const Cart = () => {
             <div className="px-4 sm:px-6 pt-3 sm:pt-4">
               <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-semibold">
                 <div className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center ${checkoutStep === 'contact' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
-                  1. Contact OTP
+                  1. Contact
                 </div>
                 <div className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center ${checkoutStep === 'address' ? 'bg-rose-400 text-white' : 'bg-rose-50 text-slate-600'}`}>
                   2. Address
@@ -290,40 +250,18 @@ const Cart = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Contact Number</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="tel"
-                        value={contactNumber}
-                        onChange={(e) => setContactNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
-                        placeholder="Enter 10 digit mobile number"
-                        className="input-field"
-                      />
-                      <button type="button" className="btn-secondary whitespace-nowrap" onClick={sendOtp} disabled={sendingOtp}>
-                        {sendingOtp ? 'Sending...' : 'Send/Resend OTP'}
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      OTP policy: 6 digits, expires in 45s, max 2 resends with 30s cooldown.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Enter OTP</label>
                     <input
                       type="tel"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                      placeholder="Enter 6 digit OTP"
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                      placeholder="Enter 10 digit mobile number"
                       className="input-field"
                     />
-                    <p className="text-xs text-slate-500 mt-1">
-                      Enter the OTP received on SMS and click verify. Max verify attempts: 3.
-                    </p>
                   </div>
 
                   <div className="flex justify-end">
-                    <button type="button" className="btn-primary" onClick={verifyOtp} disabled={verifyingOtp}>
-                      {verifyingOtp ? 'Verifying...' : 'Verify & Continue'}
+                    <button type="button" className="btn-primary" onClick={continueToAddress}>
+                      Continue
                     </button>
                   </div>
                 </div>

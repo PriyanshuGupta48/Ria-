@@ -1105,11 +1105,9 @@ router.post('/quote', authMiddleware, async (req, res) => {
 
 router.post('/place', authMiddleware, async (req, res) => {
   try {
-    const { customerName, contactNumber, verificationToken, address, paymentMethod } = req.body;
+    const { customerName, contactNumber, address, paymentMethod } = req.body;
     const cleanCustomerName = String(customerName || '').trim();
     const cleanContact = String(contactNumber || '').trim();
-    const key = buildOtpSessionKey(req.user.userId, cleanContact);
-    const otpEntry = getOtpState(key);
 
     if (!cleanCustomerName) {
       return res.status(400).json({ message: 'Customer name is required' });
@@ -1117,10 +1115,6 @@ router.post('/place', authMiddleware, async (req, res) => {
 
     if (!/^\d{10}$/.test(cleanContact)) {
       return res.status(400).json({ message: 'A valid contact number is required' });
-    }
-
-    if (!otpEntry || !otpEntry.verified || otpEntry.verificationToken !== verificationToken || otpEntry.verificationExpiresAt < Date.now()) {
-      return res.status(400).json({ message: 'OTP verification is required before placing the order' });
     }
 
     const shippingAddress = normalizeAddress(address || {});
@@ -1169,8 +1163,6 @@ router.post('/place', authMiddleware, async (req, res) => {
     const populatedOrder = await Order.findById(order._id)
       .populate('user', 'email')
       .populate('items.product', 'name image images');
-
-    otpStore.delete(key);
 
     res.status(201).json({
       message: 'Order placed successfully',
