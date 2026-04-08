@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
+import axios from 'axios';
 import toast from 'react-hot-toast';
 import { apiUrl, assetUrl } from '../config/api';
 
