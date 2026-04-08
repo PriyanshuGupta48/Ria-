@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
@@ -15,8 +16,6 @@ const OTP_MAX_RESEND_ATTEMPTS = 2;
 const OTP_MAX_VERIFY_ATTEMPTS = 3;
 const OTP_VERIFIED_TOKEN_TTL_MS = 15 * 60 * 1000;
 const OTP_SESSION_TTL_MS = 15 * 60 * 1000;
-const MSG91_SEND_OTP_URL = 'https://control.msg91.com/api/v5/otp';
-const MSG91_VERIFY_OTP_URL = 'https://control.msg91.com/api/v5/otp/verify';
 
 const DELHIVERY_PARTNER_NAME = 'Delhivery One';
 const DEFAULT_PRODUCT_WEIGHT_GRAMS = 500;
@@ -88,13 +87,16 @@ const getMonthBounds = () => {
   return { start, end };
 };
 
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
 const buildOtpSessionKey = (userId, contactNumber) => `${userId}:${contactNumber}`;
 
-const createOtpState = (now = Date.now()) => ({
+const createOtpState = (now = Date.now(), otpCode = '') => ({
   createdAt: now,
   sessionExpiresAt: now + OTP_SESSION_TTL_MS,
   otpExpiresAt: now + OTP_EXPIRY_MS,
   nextResendAt: now + OTP_RESEND_COOLDOWN_MS,
+  otpCode,
   resendAttempts: 0,
   verifyAttempts: 0,
   verified: false,
@@ -121,88 +123,82 @@ const getOtpState = (key) => {
   return state;
 };
 
-const parseJsonText = (text) => {
-  if (!text) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    return { raw: text };
-  }
+const generateOtpCode = (length = OTP_LENGTH) => {
+  const min = 10 ** (length - 1);
+  const max = 10 ** length;
+  return String(crypto.randomInt(min, max));
 };
 
-const isMsg91Success = (payload = {}) => {
-  const type = String(payload?.type || '').toLowerCase();
-  if (type === 'success') {
-    return true;
+const maskEmail = (email) => {
+  const normalized = normalizeEmail(email);
+  const [localPart = '', domain = ''] = normalized.split('@');
+  if (!localPart || !domain) {
+    return 'your registered email';
   }
 
-  return payload?.success === true || payload?.status === true;
+  if (localPart.length <= 2) {
+    return `${localPart[0] || '*'}*@${domain}`;
+  }
+
+  return `${localPart[0]}${'*'.repeat(Math.max(1, localPart.length - 2))}${localPart.slice(-1)}@${domain}`;
 };
 
-const sendMsg91Otp = async (contactNumber) => {
-  const authKey = String(process.env.MSG91_AUTH_KEY || '').trim();
-  const templateId = String(process.env.MSG91_TEMPLATE_ID || '').trim();
+const getSmtpConfig = () => {
+  const host = String(process.env.SMTP_HOST || '').trim();
+  const portValue = String(process.env.SMTP_PORT || '').trim();
+  const username = String(process.env.SMTP_USER || '').trim();
+  const password = String(process.env.SMTP_PASS || '').trim();
 
-  if (!authKey) {
-    throw new Error('MSG91_AUTH_KEY is missing. Configure it in backend environment variables.');
+  if (!host || !portValue || !username || !password) {
+    throw new Error('SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS are required for email OTP.');
   }
 
-  if (!templateId) {
-    throw new Error('MSG91_TEMPLATE_ID is missing. Configure it in backend environment variables.');
+  const port = Number(portValue);
+  if (!Number.isFinite(port) || port <= 0) {
+    throw new Error('SMTP_PORT must be a valid number.');
   }
 
-  const params = new URLSearchParams({
-    authkey: authKey,
-    mobile: `91${contactNumber}`,
-    template_id: templateId,
-  });
+  const secure = String(process.env.SMTP_SECURE || '').trim().toLowerCase() === 'true' || port === 465;
+  const fromEmail = String(process.env.EMAIL_OTP_FROM || username).trim();
 
-  const response = await fetch(`${MSG91_SEND_OTP_URL}?${params.toString()}`, {
-    method: 'POST',
-    headers: {
-      authkey: authKey,
-      Accept: 'application/json',
+  return {
+    host,
+    port,
+    secure,
+    username,
+    password,
+    fromEmail,
+  };
+};
+
+const sendEmailOtp = async (email, otpCode) => {
+  const smtp = getSmtpConfig();
+  const transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: {
+      user: smtp.username,
+      pass: smtp.password,
     },
   });
 
-  const text = await response.text();
-  const body = parseJsonText(text);
-
-  if (!response.ok || !isMsg91Success(body)) {
-    const details = String(body?.message || body?.error || body?.type || 'MSG91 send OTP failed');
-    throw new Error(details);
-  }
-
-  return body;
+  await transporter.sendMail({
+    from: smtp.fromEmail,
+    to: email,
+    subject: 'Dhaaga checkout OTP',
+    text: `Your Dhaaga OTP is ${otpCode}. It is valid for ${Math.floor(OTP_EXPIRY_MS / 1000)} seconds. Do not share it with anyone.`,
+  });
 };
 
-const verifyMsg91Otp = async (contactNumber, otp) => {
-  const authKey = String(process.env.MSG91_AUTH_KEY || '').trim();
-
-  if (!authKey) {
-    throw new Error('MSG91_AUTH_KEY is missing. Configure it in backend environment variables.');
+const isOtpMatch = (enteredOtp, storedOtp) => {
+  const left = String(enteredOtp || '');
+  const right = String(storedOtp || '');
+  if (left.length !== right.length) {
+    return false;
   }
 
-  const params = new URLSearchParams({
-    authkey: authKey,
-    mobile: `91${contactNumber}`,
-    otp,
-  });
-
-  const response = await fetch(`${MSG91_VERIFY_OTP_URL}?${params.toString()}`, {
-    method: 'POST',
-    headers: {
-      authkey: authKey,
-      Accept: 'application/json',
-    },
-  });
-
-  const text = await response.text();
-  const body = parseJsonText(text);
-  return response.ok && isMsg91Success(body);
+  return crypto.timingSafeEqual(Buffer.from(left), Buffer.from(right));
 };
 
 const normalizeAddress = (rawAddress = {}) => ({
@@ -923,9 +919,14 @@ const getCartWithValidation = async (userId) => {
 router.post('/send-otp', authMiddleware, async (req, res) => {
   try {
     const contactNumber = String(req.body.contactNumber || '').trim();
+    const userEmail = normalizeEmail(req.user?.email);
 
     if (!/^\d{10}$/.test(contactNumber)) {
       return res.status(400).json({ message: 'Contact number must be a valid 10 digit mobile number' });
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({ message: 'No account email found. Please login again and retry.' });
     }
 
     const key = buildOtpSessionKey(req.user.userId, contactNumber);
@@ -933,12 +934,14 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
     const existingState = getOtpState(key);
 
     if (!existingState) {
-      await sendMsg91Otp(contactNumber);
-      otpStore.set(key, createOtpState(now));
+      const otpCode = generateOtpCode();
+      await sendEmailOtp(userEmail, otpCode);
+      otpStore.set(key, createOtpState(now, otpCode));
 
       return res.json({
-        message: 'OTP sent successfully',
+        message: `OTP sent to ${maskEmail(userEmail)}`,
         meta: {
+          channel: 'email',
           otpLength: OTP_LENGTH,
           otpExpirySeconds: OTP_EXPIRY_MS / 1000,
           maxResendAttempts: OTP_MAX_RESEND_ATTEMPTS,
@@ -954,11 +957,13 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
     }
 
     if (existingState.resendAttempts >= OTP_MAX_RESEND_ATTEMPTS && existingState.otpExpiresAt < now) {
-      await sendMsg91Otp(contactNumber);
-      otpStore.set(key, createOtpState(now));
+      const otpCode = generateOtpCode();
+      await sendEmailOtp(userEmail, otpCode);
+      otpStore.set(key, createOtpState(now, otpCode));
       return res.json({
-        message: 'OTP sent successfully',
+        message: `OTP sent to ${maskEmail(userEmail)}`,
         meta: {
+          channel: 'email',
           otpLength: OTP_LENGTH,
           otpExpirySeconds: OTP_EXPIRY_MS / 1000,
           maxResendAttempts: OTP_MAX_RESEND_ATTEMPTS,
@@ -983,10 +988,12 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
       });
     }
 
-    await sendMsg91Otp(contactNumber);
+    const otpCode = generateOtpCode();
+    await sendEmailOtp(userEmail, otpCode);
 
     const updatedState = {
       ...existingState,
+      otpCode,
       otpExpiresAt: now + OTP_EXPIRY_MS,
       nextResendAt: now + OTP_RESEND_COOLDOWN_MS,
       resendAttempts: existingState.resendAttempts + 1,
@@ -999,15 +1006,21 @@ router.post('/send-otp', authMiddleware, async (req, res) => {
     otpStore.set(key, updatedState);
 
     return res.json({
-      message: 'OTP resent successfully',
+      message: `OTP resent to ${maskEmail(userEmail)}`,
       meta: {
+        channel: 'email',
         remainingResends: Math.max(0, OTP_MAX_RESEND_ATTEMPTS - updatedState.resendAttempts),
         otpExpirySeconds: OTP_EXPIRY_MS / 1000,
         resendCooldownSeconds: OTP_RESEND_COOLDOWN_MS / 1000,
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to send OTP', error: error.message });
+    const message = String(error?.message || 'Failed to send OTP');
+    const isConfigError = /SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_PASS|EMAIL_OTP_FROM/i.test(message);
+    return res.status(isConfigError ? 400 : 500).json({
+      message: isConfigError ? message : 'Failed to send OTP',
+      error: message,
+    });
   }
 });
 
@@ -1034,7 +1047,7 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
       return res.status(429).json({ message: 'Maximum OTP verify attempts reached. Please resend OTP.' });
     }
 
-    const verificationSuccessful = await verifyMsg91Otp(contactNumber, otp);
+    const verificationSuccessful = isOtpMatch(otp, otpEntry.otpCode);
 
     if (!verificationSuccessful) {
       const nextAttemptCount = otpEntry.verifyAttempts + 1;
@@ -1054,6 +1067,7 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
     const verificationToken = crypto.randomBytes(18).toString('hex');
     otpStore.set(key, {
       ...otpEntry,
+      otpCode: '',
       verified: true,
       verifyAttempts: otpEntry.verifyAttempts,
       verificationToken,
@@ -1069,7 +1083,7 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     const message = String(error?.message || 'Failed to verify OTP');
-    const isConfigError = /MSG91_AUTH_KEY|MSG91_TEMPLATE_ID/i.test(message);
+    const isConfigError = /SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_PASS|EMAIL_OTP_FROM/i.test(message);
     return res.status(isConfigError ? 400 : 500).json({
       message: isConfigError ? message : 'Failed to verify OTP',
       error: message,

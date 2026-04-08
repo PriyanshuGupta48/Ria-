@@ -37,14 +37,18 @@ CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
 
-# MSG91 OTP verification
-MSG91_AUTH_KEY=...
-MSG91_TEMPLATE_ID=...
+# Email OTP verification (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_email@example.com
+SMTP_PASS=your_app_password
+EMAIL_OTP_FROM="Dhaaga <your_email@example.com>"
 ```
 
-## OTP Verification (MSG91)
+## OTP Verification (Email)
 
-Checkout OTP verification now uses normal SMS OTP flow through MSG91 send and verify APIs.
+Checkout OTP verification now uses account-email OTP flow through backend SMTP configuration.
 
 Configured policy:
 
@@ -54,21 +58,14 @@ Configured policy:
 - Resend cooldown: `30 seconds`
 - Max verify attempts: `3`
 
-Server-side verification endpoint used:
-
-```text
-POST https://control.msg91.com/api/v5/otp
-POST https://control.msg91.com/api/v5/otp/verify
-```
-
 Frontend flow is now standard:
 
 - User enters contact number and clicks `Send/Resend OTP`
-- OTP is delivered by SMS from MSG91
+- OTP is delivered to the logged-in account email
 - User enters 6 digit OTP and clicks verify
-- Backend verifies OTP with MSG91 and issues checkout verification token automatically
+- Backend verifies OTP from the in-memory checkout session and issues checkout verification token automatically
 
-For localhost and hosted, set `MSG91_AUTH_KEY` and `MSG91_TEMPLATE_ID` in backend environment.
+For localhost and hosted, set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and optionally `EMAIL_OTP_FROM` in backend environment.
 
 ## Notes
 
