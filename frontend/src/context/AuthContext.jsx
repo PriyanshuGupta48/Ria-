@@ -11,13 +11,32 @@ const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 const shouldKeepLocalAuth = process.env.REACT_APP_KEEP_LOCAL_AUTH === 'true';
 let backendWarmPromise = null;
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const withRetry = async (operation, { attempts = 3, delayMs = 1200 } = {}) => {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await sleep(delayMs * attempt);
+      }
+    }
+  }
+
+  throw lastError;
+};
+
 const warmBackend = () => {
   if (backendWarmPromise) {
     return backendWarmPromise;
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   backendWarmPromise = fetch(apiUrl('/api/health'), {
     method: 'GET',
@@ -63,10 +82,10 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       await warmBackend();
-      const response = await axios.post(apiUrl('/api/auth/login'), {
+      const response = await withRetry(() => axios.post(apiUrl('/api/auth/login'), {
         email: normalizeEmail(email),
-        password
-      });
+        password,
+      }), { attempts: 3, delayMs: 1500 });
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
@@ -83,10 +102,10 @@ export const AuthProvider = ({ children }) => {
   const adminLogin = async (email, password) => {
     try {
       await warmBackend();
-      const response = await axios.post(apiUrl('/api/auth/admin-login'), {
+      const response = await withRetry(() => axios.post(apiUrl('/api/auth/admin-login'), {
         email: normalizeEmail(email),
-        password
-      });
+        password,
+      }), { attempts: 3, delayMs: 1500 });
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
@@ -103,10 +122,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (email, password) => {
     try {
       await warmBackend();
-      const response = await axios.post(apiUrl('/api/auth/register'), {
+      const response = await withRetry(() => axios.post(apiUrl('/api/auth/register'), {
         email: normalizeEmail(email),
-        password
-      });
+        password,
+      }), { attempts: 3, delayMs: 1500 });
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
