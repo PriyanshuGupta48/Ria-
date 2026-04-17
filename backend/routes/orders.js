@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const Razorpay = require('razorpay');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
@@ -24,6 +25,42 @@ const PACKAGING_WEIGHT_GRAMS = 100;
 const DEFAULT_LENGTH_CM = 10;
 const DEFAULT_BREADTH_CM = 10;
 const DEFAULT_HEIGHT_CM = 10;
+const RAZORPAY_CURRENCY = String(process.env.RAZORPAY_CURRENCY || 'INR').trim().toUpperCase();
+
+const getRazorpayCredentials = () => {
+  const keyId = String(process.env.RAZORPAY_KEY_ID || '').trim();
+  const keySecret = String(process.env.RAZORPAY_KEY_SECRET || '').trim();
+  return { keyId, keySecret };
+};
+
+const getRazorpayClient = () => {
+  const { keyId, keySecret } = getRazorpayCredentials();
+
+  if (!keyId || !keySecret) {
+    throw new Error('Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in backend environment variables.');
+  }
+
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret,
+  });
+};
+
+const verifyRazorpaySignature = ({ razorpayOrderId, razorpayPaymentId, razorpaySignature }) => {
+  const { keySecret } = getRazorpayCredentials();
+
+  if (!keySecret) {
+    throw new Error('Razorpay is not configured. Set RAZORPAY_KEY_SECRET in backend environment variables.');
+  }
+
+  const payload = `${razorpayOrderId}|${razorpayPaymentId}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', keySecret)
+    .update(payload)
+    .digest('hex');
+
+  return expectedSignature === razorpaySignature;
+};
 
 const readNumberCandidate = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -1098,6 +1135,196 @@ router.post('/quote', authMiddleware, async (req, res) => {
 
     return res.status(isConfigError ? 400 : 500).json({
       message: isConfigError ? message : 'Failed to generate quote',
+      error: message,
+    });
+  }
+});
+
+router.post('/payment/create-order', authMiddleware, async (req, res) => {
+  try {
+    const { customerName, contactNumber, address, paymentMethod } = req.body;
+    const cleanCustomerName = String(customerName || '').trim();
+    const cleanContact = String(contactNumber || '').trim();
+
+    if (!cleanCustomerName) {
+      return res.status(400).json({ message: 'Customer name is required' });
+    }
+
+    if (!/^\d{10}$/.test(cleanContact)) {
+      return res.status(400).json({ message: 'A valid contact number is required' });
+    }
+
+    const shippingAddress = normalizeAddress(address || {});
+    const addressError = validateAddress(shippingAddress);
+    if (addressError) {
+      return res.status(400).json({ message: addressError });
+    }
+
+    const allowedPaymentMethods = ['UPI', 'Card', 'NetBanking'];
+    if (!allowedPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({ message: 'Please choose a valid payment gateway option' });
+    }
+
+    const cartResult = await getCartWithValidation(req.user.userId);
+    if (cartResult.error) {
+      return res.status(400).json({ message: cartResult.error });
+    }
+
+    const { subtotalAmount } = cartResult;
+    const quote = await getDeliveryQuote(shippingAddress, subtotalAmount, cartResult.packageMetrics, cleanCustomerName, cleanContact);
+    const payableAmount = Number(quote.payableAmount || 0);
+    const amountInPaise = Math.round(payableAmount * 100);
+
+    if (!Number.isFinite(amountInPaise) || amountInPaise <= 0) {
+      return res.status(400).json({ message: 'Calculated payable amount is invalid for payment.' });
+    }
+
+    const razorpay = getRazorpayClient();
+    const { keyId } = getRazorpayCredentials();
+    const receipt = `rcpt_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency: RAZORPAY_CURRENCY,
+      receipt,
+      notes: {
+        userId: String(req.user.userId),
+        customerName: cleanCustomerName,
+        contactNumber: cleanContact,
+      },
+    });
+
+    return res.json({
+      message: 'Razorpay order created successfully',
+      keyId,
+      razorpayOrder,
+      amountBreakdown: {
+        subtotal: subtotalAmount,
+        deliveryCharge: quote.deliveryCharge,
+        payableAmount,
+        deliveryPartner: quote.deliveryPartner,
+      },
+    });
+  } catch (error) {
+    const message = String(error?.message || 'Failed to create payment order');
+    const isConfigError = /RAZORPAY_KEY_ID|RAZORPAY_KEY_SECRET|Razorpay is not configured/i.test(message);
+    return res.status(isConfigError ? 400 : 500).json({
+      message: isConfigError ? message : 'Failed to create payment order',
+      error: message,
+    });
+  }
+});
+
+router.post('/payment/verify', authMiddleware, async (req, res) => {
+  try {
+    const {
+      customerName,
+      contactNumber,
+      address,
+      paymentMethod,
+      razorpay_order_id: razorpayOrderId,
+      razorpay_payment_id: razorpayPaymentId,
+      razorpay_signature: razorpaySignature,
+    } = req.body;
+
+    const cleanCustomerName = String(customerName || '').trim();
+    const cleanContact = String(contactNumber || '').trim();
+    const cleanRazorpayOrderId = String(razorpayOrderId || '').trim();
+    const cleanRazorpayPaymentId = String(razorpayPaymentId || '').trim();
+    const cleanRazorpaySignature = String(razorpaySignature || '').trim();
+
+    if (!cleanCustomerName) {
+      return res.status(400).json({ message: 'Customer name is required' });
+    }
+
+    if (!/^\d{10}$/.test(cleanContact)) {
+      return res.status(400).json({ message: 'A valid contact number is required' });
+    }
+
+    const shippingAddress = normalizeAddress(address || {});
+    const addressError = validateAddress(shippingAddress);
+    if (addressError) {
+      return res.status(400).json({ message: addressError });
+    }
+
+    const allowedPaymentMethods = ['UPI', 'Card', 'NetBanking'];
+    if (!allowedPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({ message: 'Please choose a valid payment gateway option' });
+    }
+
+    if (!cleanRazorpayOrderId || !cleanRazorpayPaymentId || !cleanRazorpaySignature) {
+      return res.status(400).json({ message: 'Razorpay payment details are incomplete' });
+    }
+
+    const existingOrder = await Order.findOne({
+      user: req.user.userId,
+      paymentReference: cleanRazorpayPaymentId,
+    })
+      .populate('user', 'email')
+      .populate('items.product', 'name image images');
+
+    if (existingOrder) {
+      return res.json({
+        message: 'Payment already verified and order already created',
+        order: existingOrder,
+        duplicate: true,
+      });
+    }
+
+    const signatureOk = verifyRazorpaySignature({
+      razorpayOrderId: cleanRazorpayOrderId,
+      razorpayPaymentId: cleanRazorpayPaymentId,
+      razorpaySignature: cleanRazorpaySignature,
+    });
+
+    if (!signatureOk) {
+      return res.status(400).json({ message: 'Payment verification failed due to invalid signature' });
+    }
+
+    const cartResult = await getCartWithValidation(req.user.userId);
+    if (cartResult.error) {
+      return res.status(400).json({ message: cartResult.error });
+    }
+
+    const { cart, orderItems, subtotalAmount } = cartResult;
+    const quote = await getDeliveryQuote(shippingAddress, subtotalAmount, cartResult.packageMetrics, cleanCustomerName, cleanContact);
+
+    const order = await Order.create({
+      user: req.user.userId,
+      items: orderItems,
+      subtotalAmount,
+      deliveryCharge: quote.deliveryCharge,
+      deliveryPartner: quote.deliveryPartner,
+      totalAmount: quote.payableAmount,
+      status: 'pending',
+      contactNumber: cleanContact,
+      shippingAddress,
+      paymentMethod,
+      paymentStatus: 'paid',
+      paymentReference: cleanRazorpayPaymentId,
+      customerName: cleanCustomerName,
+      statusTimeline: {
+        pendingAt: new Date(),
+      },
+    });
+
+    cart.items = [];
+    cart.updatedAt = Date.now();
+    await cart.save();
+
+    const populatedOrder = await Order.findById(order._id)
+      .populate('user', 'email')
+      .populate('items.product', 'name image images');
+
+    return res.status(201).json({
+      message: 'Payment verified and order placed successfully',
+      order: populatedOrder,
+    });
+  } catch (error) {
+    const message = String(error?.message || 'Failed to verify payment');
+    const isConfigError = /RAZORPAY_KEY_ID|RAZORPAY_KEY_SECRET|Razorpay is not configured/i.test(message);
+    return res.status(isConfigError ? 400 : 500).json({
+      message: isConfigError ? message : 'Failed to verify payment',
       error: message,
     });
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { apiUrl, assetUrl } from '../config/api';
 
 const Cart = () => {
-  const { cart, updateQuantity, removeFromCart, getCartTotal, placeOrder } = useCart();
+  const { cart, updateQuantity, removeFromCart, getCartTotal, fetchCart } = useCart();
   const navigate = useNavigate();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState('contact');
@@ -34,17 +34,36 @@ const Cart = () => {
       maximumFractionDigits: 2,
     }).format(Number(amount || 0));
 
-  const handlePlaceOrder = async () => {
-    const success = await placeOrder({
-      customerName: customerName.trim(),
-      contactNumber,
-      address,
-      paymentMethod,
-    });
-    if (success) {
-      setIsCheckoutOpen(false);
-      navigate('/my-orders');
+  useEffect(() => {
+    if (window.Razorpay) {
+      return;
     }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  const loadRazorpaySdk = () => {
+    if (window.Razorpay) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
   };
 
   const openCheckoutPopup = () => {
@@ -97,9 +116,99 @@ const Cart = () => {
   };
 
   const payAndPlaceOrder = async () => {
+    if (placingOrder) {
+      return;
+    }
+
     setPlacingOrder(true);
-    await handlePlaceOrder();
-    setPlacingOrder(false);
+
+    try {
+      const sdkLoaded = await loadRazorpaySdk();
+      if (!sdkLoaded || !window.Razorpay) {
+        toast.error('Razorpay SDK failed to load. Check your internet and try again.');
+        return;
+      }
+
+      const createOrderResponse = await axios.post(apiUrl('/api/orders/payment/create-order'), {
+        customerName: customerName.trim(),
+        contactNumber,
+        address,
+        paymentMethod,
+      });
+
+      const { keyId, razorpayOrder } = createOrderResponse.data || {};
+
+      if (!keyId || !razorpayOrder?.id) {
+        toast.error('Unable to initialize Razorpay payment.');
+        return;
+      }
+
+      await new Promise((resolve, reject) => {
+        const gatewayMethodMap = {
+          UPI: { upi: true, card: false, netbanking: false },
+          Card: { upi: false, card: true, netbanking: false },
+          NetBanking: { upi: false, card: false, netbanking: true },
+        };
+
+        const razorpayInstance = new window.Razorpay({
+          key: keyId,
+          order_id: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          name: 'Ria',
+          description: 'Order payment',
+          method: gatewayMethodMap[paymentMethod] || undefined,
+          prefill: {
+            name: customerName.trim(),
+            contact: `91${contactNumber}`,
+          },
+          notes: {
+            customerName: customerName.trim(),
+            contactNumber,
+          },
+          handler: async (response) => {
+            try {
+              await axios.post(apiUrl('/api/orders/payment/verify'), {
+                customerName: customerName.trim(),
+                contactNumber,
+                address,
+                paymentMethod,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+
+              await fetchCart();
+              setIsCheckoutOpen(false);
+              toast.success('Payment successful. Order placed!');
+              navigate('/my-orders');
+              resolve(true);
+            } catch (error) {
+              const verifyMessage = String(error.response?.data?.message || error.message || '').trim();
+              reject(new Error(verifyMessage || 'Payment verification failed'));
+            }
+          },
+          modal: {
+            ondismiss: () => reject(new Error('Payment cancelled.')),
+          },
+          theme: {
+            color: '#fb7185',
+          },
+        });
+
+        razorpayInstance.on('payment.failed', (response) => {
+          const failureMessage = String(response?.error?.description || 'Payment failed').trim();
+          reject(new Error(failureMessage));
+        });
+
+        razorpayInstance.open();
+      });
+    } catch (error) {
+      const errorMessage = String(error.response?.data?.message || error.message || '').trim();
+      toast.error(errorMessage || 'Failed to process payment');
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   if (!cart || !cart.items || cart.items.length === 0) {

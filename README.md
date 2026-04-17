@@ -2,6 +2,24 @@
 
 This project now supports real-time delivery quotation via Delhivery One during checkout.
 
+## Razorpay Payment Integration
+
+Checkout now uses Razorpay for online payments. Order creation in database happens only after backend signature verification.
+
+Add these in `backend/.env`:
+
+```env
+RAZORPAY_KEY_ID=rzp_live_xxxxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=your_live_secret
+RAZORPAY_CURRENCY=INR
+```
+
+Notes:
+
+- Keep `RAZORPAY_KEY_SECRET` only on backend.
+- Frontend loads Razorpay Checkout SDK (`checkout.razorpay.com`) and gets order id from backend.
+- Backend verifies signature at `POST /api/orders/payment/verify` before creating order.
+
 ## Checkout Flow
 
 1. User verifies mobile number with OTP.
