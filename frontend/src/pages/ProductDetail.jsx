@@ -164,9 +164,11 @@ const ProductDetail = () => {
     }
   };
 
-  const handleAddToCart = () => {
-    addToCart(product._id, quantity);
-    toast.success(`Added ${quantity} item(s) to cart!`);
+  const handleAddToCart = async () => {
+    const added = await addToCart(product._id, quantity);
+    if (added) {
+      toast.success(`Added ${quantity} item(s) to cart!`);
+    }
   };
 
   if (loading) {
