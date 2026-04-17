@@ -1,6 +1,10 @@
 const legacyApiUrl = process.env.REACT_APP_API_URL || '';
 const normalizedLegacyBase = legacyApiUrl.replace(/\/api\/?$/, '');
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || normalizedLegacyBase || 'http://localhost:3500').replace(/\/+$/, '');
+const defaultApiBaseUrl = process.env.NODE_ENV === 'development'
+  ? 'http://localhost:3500'
+  : 'https://dhaaga-backend.onrender.com';
+
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || normalizedLegacyBase || defaultApiBaseUrl).replace(/\/+$/, '');
 
 export const apiUrl = (path = '') => {
   if (!path) {
