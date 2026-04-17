@@ -11,6 +11,7 @@ const Home = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const uniqueCategories = [...new Set(products.map((item) => item.category).filter(Boolean))];
 
@@ -27,12 +28,50 @@ const Home = () => {
   }, [selectedCategory, products]);
 
   const fetchProducts = async () => {
+    setLoadError('');
+    setLoading(true);
+
+    const wakeBackend = async () => {
+      try {
+        await fetch(apiUrl('/api/health'), { method: 'GET', cache: 'no-store' });
+      } catch (error) {
+        // Best-effort warm-up call for sleeping backends.
+      }
+    };
+
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
     try {
-      const response = await axios.get(apiUrl('/api/products'));
-      setProducts(response.data);
-      setFilteredProducts(response.data);
+      await wakeBackend();
+
+      let response = null;
+      let lastError = null;
+      const maxAttempts = 3;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          response = await axios.get(apiUrl('/api/products'));
+          break;
+        } catch (error) {
+          lastError = error;
+          if (attempt < maxAttempts) {
+            await wait(1200 * attempt);
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError || new Error('Unable to load products');
+      }
+
+      const productList = Array.isArray(response.data) ? response.data : [];
+      setProducts(productList);
+      setFilteredProducts(productList);
     } catch (error) {
       console.error('Error fetching products:', error);
+      setProducts([]);
+      setFilteredProducts([]);
+      setLoadError('Products are taking longer to load. Please tap retry.');
     } finally {
       setLoading(false);
     }
@@ -71,16 +110,25 @@ const Home = () => {
         <div className="hero-stat">
           <div className="space-y-3">
             <div>
-              <p className="hero-stat-number">{products.length}+</p>
+              <p className="hero-stat-number">{loadError ? '--' : `${products.length}+`}</p>
               <p className="hero-stat-label">Crafted pieces currently available</p>
             </div>
             <div>
-              <p className="hero-stat-number">{uniqueCategories.length} Categories</p>
+              <p className="hero-stat-number">{loadError ? '--' : `${uniqueCategories.length} Categories`}</p>
               <p className="hero-stat-label">From tiny keepsakes to statement decor</p>
             </div>
           </div>
         </div>
       </section>
+
+      {loadError && (
+        <div className="mb-6 rounded-2xl border bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-3" style={{ borderColor: 'var(--border-soft)' }}>
+          <p className="text-sm text-slate-700">{loadError}</p>
+          <button type="button" onClick={fetchProducts} className="btn-secondary rounded-xl px-4 py-2">
+            Retry
+          </button>
+        </div>
+      )}
 
       <section id="why-dhaaga" className="mb-8 sm:mb-10 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         <article className="value-card">
@@ -117,7 +165,9 @@ const Home = () => {
 
       {filteredProducts.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No products found in this category.</p>
+          <p className="text-gray-500 text-lg">
+            {loadError ? 'Unable to load products right now.' : 'No products found in this category.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
