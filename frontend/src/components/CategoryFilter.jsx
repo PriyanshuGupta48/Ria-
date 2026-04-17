@@ -11,9 +11,14 @@ const CategoryFilter = ({ selectedCategory, onCategoryChange }) => {
           onClick={() => onCategoryChange(category)}
           className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-full font-semibold text-sm sm:text-base transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
             selectedCategory === category
-              ? 'bg-rose-300 text-white shadow-lg shadow-rose-200'
-              : 'bg-white text-slate-700 hover:bg-rose-50 border border-rose-100 shadow-sm'
+              ? 'text-white shadow-lg'
+              : 'bg-white text-slate-700 hover:bg-orange-50 border shadow-sm'
           }`}
+          style={
+            selectedCategory === category
+              ? { background: 'linear-gradient(135deg, #e27b5f 0%, #e99372 100%)' }
+              : { borderColor: 'var(--border-soft)' }
+          }
         >
           {category}
         </button>

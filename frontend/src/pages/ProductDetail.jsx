@@ -171,9 +171,9 @@ const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-rose-400"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderBottomColor: 'var(--brand-primary)' }}></div>
           <p className="mt-4 text-slate-700">Loading product...</p>
         </div>
       </div>
@@ -182,13 +182,13 @@ const ProductDetail = () => {
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-rose-400 mx-auto mb-4" />
+          <AlertCircle className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--brand-primary)' }} />
           <p className="text-slate-700">Product not found</p>
           <button
             onClick={() => navigate('/')}
-            className="mt-4 px-4 py-2 bg-rose-400 text-white rounded-lg hover:bg-rose-500"
+            className="mt-4 btn-primary"
           >
             Back to Home
           </button>
@@ -213,12 +213,13 @@ const ProductDetail = () => {
     reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : 0;
 
   return (
-    <div className="min-h-screen bg-white pt-20 pb-12">
+    <div className="min-h-screen pt-20 pb-12">
       <div className="max-w-7xl mx-auto px-4">
         {/* Back button */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-rose-400 hover:text-rose-500 mb-6"
+          className="flex items-center gap-2 mb-6 text-sm sm:text-base font-semibold transition"
+          style={{ color: 'var(--brand-primary)' }}
         >
           <ChevronLeft className="h-5 w-5" />
           Back to Products
@@ -228,21 +229,21 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-12">
           {/* Gallery */}
           <div className="space-y-3 lg:space-y-4">
-            <div className="relative bg-rose-50 rounded-lg overflow-hidden h-64 sm:h-80 lg:h-96 flex items-center justify-center border-2 border-rose-100">
-              <img src={assetUrl(currentImage)} alt={product.name} className="w-full h-full object-contain" />
+            <div className="relative rounded-3xl overflow-hidden h-72 sm:h-96 lg:h-[34rem] flex items-center justify-center border shadow-md bg-white" style={{ borderColor: 'var(--border-soft)' }}>
+              <img src={assetUrl(currentImage)} alt={product.name} className="w-full h-full object-cover" />
               {images.length > 1 && (
                 <>
                   <button
                     onClick={() => setActivePhotoIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
-                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-lg hover:bg-rose-50 transition"
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2.5 shadow-lg transition"
                   >
-                    <ChevronLeft className="h-5 w-5 text-rose-400" />
+                    <ChevronLeft className="h-5 w-5" style={{ color: 'var(--brand-primary)' }} />
                   </button>
                   <button
                     onClick={() => setActivePhotoIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-lg hover:bg-rose-50 transition"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2.5 shadow-lg transition"
                   >
-                    <ChevronRight className="h-5 w-5 text-rose-400" />
+                    <ChevronRight className="h-5 w-5" style={{ color: 'var(--brand-primary)' }} />
                   </button>
                 </>
               )}
@@ -250,14 +251,15 @@ const ProductDetail = () => {
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
+              <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActivePhotoIndex(idx)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg border-2 overflow-hidden transition ${
-                      activePhotoIndex === idx ? 'border-rose-400' : 'border-rose-100'
+                    className={`flex-shrink-0 w-20 h-20 rounded-2xl border-2 overflow-hidden transition ${
+                      activePhotoIndex === idx ? 'scale-[1.02]' : ''
                     }`}
+                    style={{ borderColor: activePhotoIndex === idx ? 'var(--brand-primary)' : 'var(--border-soft)' }}
                   >
                     <img src={assetUrl(img)} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -268,16 +270,20 @@ const ProductDetail = () => {
 
           {/* Product Info */}
           <div className="space-y-4 sm:space-y-5 lg:space-y-6">
-            <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-700 mb-2">{product.name}</h1>
-              <div className="flex items-center gap-4">
+            <div className="rounded-3xl bg-white border shadow-md p-5 sm:p-6" style={{ borderColor: 'var(--border-soft)' }}>
+              <span className="inline-flex mb-3 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white" style={{ background: 'linear-gradient(120deg, var(--brand-accent) 0%, #49a580 100%)' }}>
+                {product.category}
+              </span>
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-800 mb-2 leading-tight">{product.name}</h1>
+              <div className="flex items-center flex-wrap gap-4">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`h-5 w-5 ${
-                        i < Math.round(averageRating) ? 'fill-rose-400 text-rose-400' : 'text-rose-100'
+                        i < Math.round(averageRating) ? 'fill-current' : 'text-slate-200'
                       }`}
+                      style={i < Math.round(averageRating) ? { color: 'var(--brand-primary)' } : undefined}
                     />
                   ))}
                 </div>
@@ -285,25 +291,25 @@ const ProductDetail = () => {
                   {averageRating} ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
                 </span>
               </div>
+              <div className="mt-5 pt-4 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+                <p className="text-slate-600 text-sm sm:text-base">Price</p>
+                <p className="text-3xl sm:text-4xl font-black tracking-tight" style={{ color: 'var(--brand-primary)' }}>
+                  {formatCurrency(product.price)}
+                </p>
+              </div>
             </div>
 
-            <div className="border-t-2 border-b-2 border-rose-100 py-3 sm:py-4 space-y-2">
-              <p className="text-slate-600 text-sm sm:text-base">Price</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-rose-500">{formatCurrency(product.price)}</p>
-              <p className="text-xs sm:text-sm text-slate-500">Category: {product.category}</p>
-            </div>
-
-            <div>
-              <h3 className="text-base sm:text-lg lg:text-lg font-semibold text-slate-700 mb-2">Description</h3>
+            <div className="rounded-3xl bg-white border shadow-md p-5 sm:p-6" style={{ borderColor: 'var(--border-soft)' }}>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Description</h3>
               <p className="text-slate-600 leading-relaxed text-sm sm:text-base">{product.description}</p>
             </div>
 
             {detailRows.length > 0 && (
-              <div className="bg-white border-2 border-rose-100 rounded-lg p-3 sm:p-4">
-                <h3 className="text-base sm:text-lg lg:text-lg font-semibold text-slate-700 mb-3">Item Details</h3>
+              <div className="bg-white border rounded-3xl p-4 sm:p-5 shadow-md" style={{ borderColor: 'var(--border-soft)' }}>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-3">Item Details</h3>
                 <div className="space-y-2">
                   {detailRows.map((row) => (
-                    <div key={row.label} className="flex items-start justify-between gap-4 border-b border-rose-50 pb-2 last:border-0 last:pb-0">
+                    <div key={row.label} className="flex items-start justify-between gap-4 border-b pb-2 last:border-0 last:pb-0" style={{ borderColor: 'var(--border-soft)' }}>
                       <span className="text-slate-500 text-sm">{row.label}</span>
                       <span className="text-slate-700 text-sm font-medium text-right">{row.value}</span>
                     </div>
@@ -313,20 +319,23 @@ const ProductDetail = () => {
             )}
 
             {/* Add to Cart Section */}
-            <div className="space-y-3 sm:space-y-4 bg-rose-50 p-4 sm:p-5 lg:p-6 rounded-lg border-2 border-rose-100">
+            <div className="space-y-3 sm:space-y-4 bg-white p-4 sm:p-5 lg:p-6 rounded-3xl border shadow-md" style={{ borderColor: 'var(--border-soft)' }}>
+              <p className="text-xs uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--brand-accent)' }}>Purchase Options</p>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <label className="text-slate-700 font-semibold text-sm sm:text-base">Quantity:</label>
-                <div className="flex items-center gap-2 sm:gap-3 border-2 border-rose-200 rounded-lg w-fit">
+                <div className="flex items-center gap-2 sm:gap-3 border rounded-xl w-fit" style={{ borderColor: 'var(--border-soft)' }}>
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-rose-400 hover:bg-rose-100 transition text-sm sm:text-base"
+                    className="px-2 sm:px-3 py-1.5 sm:py-2 transition text-sm sm:text-base"
+                    style={{ color: 'var(--brand-primary)' }}
                   >
                     −
                   </button>
                   <span className="w-6 sm:w-8 text-center font-semibold text-slate-700 text-sm sm:text-base">{quantity}</span>
                   <button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-rose-400 hover:bg-rose-100 transition text-sm sm:text-base"
+                    className="px-2 sm:px-3 py-1.5 sm:py-2 transition text-sm sm:text-base"
+                    style={{ color: 'var(--brand-primary)' }}
                   >
                     +
                   </button>
@@ -334,7 +343,7 @@ const ProductDetail = () => {
               </div>
               <button
                 onClick={handleAddToCart}
-                className="w-full bg-gradient-to-r from-rose-300 to-rose-400 hover:from-rose-400 hover:to-rose-500 text-white font-bold py-2 sm:py-3 rounded-lg transition duration-200 text-sm sm:text-base"
+                className="w-full btn-primary rounded-xl"
               >
                 Add to Cart
               </button>
@@ -343,14 +352,14 @@ const ProductDetail = () => {
         </div>
 
         {/* Reviews Section */}
-        <div className="border-t-2 border-rose-100 pt-8 sm:pt-10 lg:pt-12">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-700 mb-6 sm:mb-8">Reviews ({reviews.length})</h2>
+        <div className="border-t pt-8 sm:pt-10 lg:pt-12" style={{ borderColor: 'var(--border-soft)' }}>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 mb-6 sm:mb-8">Reviews ({reviews.length})</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Review Form */}
             <div className="lg:col-span-1">
-              <div className="bg-rose-50 p-4 sm:p-5 lg:p-6 rounded-lg border-2 border-rose-100 sticky top-20 lg:top-24">
-                <h3 className="text-base sm:text-lg font-semibold text-slate-700 mb-3 sm:mb-4">
+              <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-3xl border shadow-md sticky top-20 lg:top-24" style={{ borderColor: 'var(--border-soft)' }}>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-3 sm:mb-4">
                   {userReview ? 'Edit Your Review' : 'Write a Review'}
                 </h3>
                 {user ? (
@@ -368,9 +377,10 @@ const ProductDetail = () => {
                             <Star
                               className={`h-5 w-5 sm:h-6 sm:w-6 ${
                                 star <= rating
-                                  ? 'fill-rose-400 text-rose-400'
-                                  : 'text-rose-200 hover:text-rose-300'
+                                  ? 'fill-current'
+                                  : 'text-slate-300 hover:text-slate-400'
                               }`}
+                              style={star <= rating ? { color: 'var(--brand-primary)' } : undefined}
                             />
                           </button>
                         ))}
@@ -383,7 +393,8 @@ const ProductDetail = () => {
                         value={comment}
                         onChange={(e) => setComment(e.target.value.slice(0, 500))}
                         placeholder="Share your thoughts..."
-                        className="w-full p-3 border-2 border-rose-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300 text-slate-700 resize-none"
+                        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 text-slate-700 resize-none"
+                        style={{ borderColor: 'var(--border-soft)', '--tw-ring-color': 'color-mix(in srgb, var(--brand-primary) 25%, white)' }}
                         rows={4}
                       />
                       <p className="text-xs text-slate-500 mt-1">
@@ -393,8 +404,8 @@ const ProductDetail = () => {
 
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Photo of received item (optional)</label>
-                      <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-rose-200 rounded-lg px-4 py-3 bg-white text-slate-700 hover:border-rose-300 cursor-pointer transition">
-                        <ImagePlus className="h-4 w-4 text-rose-400" />
+                      <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed rounded-xl px-4 py-3 bg-white text-slate-700 cursor-pointer transition" style={{ borderColor: 'var(--border-soft)' }}>
+                        <ImagePlus className="h-4 w-4" style={{ color: 'var(--brand-primary)' }} />
                         <span className="text-sm">Upload photo</span>
                         <input
                           type="file"
@@ -412,7 +423,8 @@ const ProductDetail = () => {
                           <img
                             src={reviewImagePreview || assetUrl(userReview.image)}
                             alt="Review upload preview"
-                            className="w-full h-40 object-cover rounded-lg border border-rose-200"
+                            className="w-full h-40 object-cover rounded-xl border"
+                            style={{ borderColor: 'var(--border-soft)' }}
                           />
                           <button
                             type="button"
@@ -435,7 +447,7 @@ const ProductDetail = () => {
                     <button
                       type="submit"
                       disabled={submittingReview}
-                      className="w-full bg-rose-400 hover:bg-rose-500 disabled:bg-rose-300 text-white font-semibold py-2 rounded-lg transition"
+                      className="w-full btn-primary rounded-xl disabled:opacity-70"
                     >
                       {submittingReview ? 'Submitting...' : userReview ? 'Update Review' : 'Submit Review'}
                     </button>
@@ -444,7 +456,7 @@ const ProductDetail = () => {
                       <button
                         type="button"
                         onClick={() => handleDeleteReview(userReview._id)}
-                        className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+                        className="w-full bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2 rounded-xl transition flex items-center justify-center gap-2 border border-red-100"
                       >
                         <Trash2 className="h-4 w-4" />
                         Delete Review
@@ -453,7 +465,7 @@ const ProductDetail = () => {
                   </form>
                 ) : (
                   <p className="text-slate-600 text-sm">
-                    Please <a href="/login" className="text-rose-400 hover:underline">log in</a> to write a review.
+                    Please <a href="/login" className="hover:underline" style={{ color: 'var(--brand-primary)' }}>log in</a> to write a review.
                   </p>
                 )}
               </div>
@@ -462,12 +474,12 @@ const ProductDetail = () => {
             {/* Reviews List */}
             <div className="lg:col-span-2 space-y-4">
               {reviews.length === 0 ? (
-                <div className="text-center py-12 bg-rose-50 rounded-lg border-2 border-rose-100">
+                <div className="text-center py-12 bg-white rounded-3xl border shadow-sm" style={{ borderColor: 'var(--border-soft)' }}>
                   <p className="text-slate-600">No reviews yet. Be the first to review!</p>
                 </div>
               ) : (
                 reviews.map((review) => (
-                  <div key={review._id} className="bg-white p-6 rounded-lg border-2 border-rose-100">
+                  <div key={review._id} className="bg-white p-6 rounded-3xl border shadow-sm" style={{ borderColor: 'var(--border-soft)' }}>
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <p className="font-semibold text-slate-700">{review.email.split('@')[0]}</p>
@@ -477,8 +489,9 @@ const ProductDetail = () => {
                               <Star
                                 key={i}
                                 className={`h-4 w-4 ${
-                                  i < review.rating ? 'fill-rose-400 text-rose-400' : 'text-rose-100'
+                                  i < review.rating ? 'fill-current' : 'text-slate-200'
                                 }`}
+                                style={i < review.rating ? { color: 'var(--brand-primary)' } : undefined}
                               />
                             ))}
                           </div>
@@ -501,7 +514,8 @@ const ProductDetail = () => {
                       <img
                         src={assetUrl(review.image)}
                         alt="User shared item"
-                        className="mt-3 w-full max-w-sm h-56 object-cover rounded-lg border border-rose-100"
+                        className="mt-3 w-full max-w-sm h-56 object-cover rounded-2xl border"
+                        style={{ borderColor: 'var(--border-soft)' }}
                       />
                     )}
                   </div>

@@ -31,8 +31,13 @@ const ProductCard = ({ product }) => {
         <img
           src={assetUrl(activePhoto)}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
+        <div className="absolute top-3 left-3">
+          <span className="product-chip">
+            {product.category}
+          </span>
+        </div>
         {photos.length > 1 && (
           <div className="absolute bottom-3 left-3 right-3 flex gap-2 overflow-x-auto pb-1">
             {photos.map((photo, index) => (
@@ -54,25 +59,21 @@ const ProductCard = ({ product }) => {
         )}
       </div>
       <div className="p-3 sm:p-4">
-        <div className="mb-2">
-          <span className="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-1 rounded-full inline-block">
-            {product.category} • {photos.length} photo{photos.length === 1 ? '' : 's'}
-          </span>
-        </div>
-        <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 line-clamp-2">{product.name}</h3>
+        <p className="text-xs text-slate-500 mb-1">{photos.length} image{photos.length === 1 ? '' : 's'} available</p>
+        <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-3 line-clamp-2 min-h-[3.5rem]">{product.name}</h3>
         <div className="flex justify-between items-center gap-2">
-          <span className="text-2xl font-bold text-slate-800">{formatCurrency(product.price)}</span>
+          <span className="text-2xl font-black text-slate-900 tracking-tight">{formatCurrency(product.price)}</span>
           <div className="flex gap-2">
             <button
               onClick={() => navigate(`/product/${product._id}`)}
-              className="btn-secondary inline-flex items-center gap-2 px-3 py-2"
+              className="btn-secondary inline-flex items-center gap-2 px-3 py-2 rounded-xl"
               title="View details"
             >
               <Eye size={18} />
             </button>
             <button
               onClick={() => addToCart(product._id)}
-              className="btn-primary inline-flex items-center gap-2 px-4 py-2"
+              className="btn-primary inline-flex items-center gap-2 px-4 py-2 rounded-xl"
             >
               <ShoppingCart size={18} />
               Add
