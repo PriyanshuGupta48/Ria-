@@ -12,12 +12,6 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null);
   const { user } = useAuth();
 
-  const redirectToLogin = () => {
-    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    const encodedNext = encodeURIComponent(currentPath || '/');
-    window.location.assign(`/login?next=${encodedNext}`);
-  };
-
   const fetchCart = async () => {
     if (!user) {
       setCart(null);
@@ -37,8 +31,7 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = async (productId, quantity = 1) => {
     if (!user) {
-      toast.error('Please login to add items to cart', { id: 'cart-login-required' });
-      redirectToLogin();
+      toast.error('Please login to add items to cart');
       return false;
     }
     try {
