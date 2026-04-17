@@ -35,7 +35,7 @@ const AppShell = () => {
   const userRole = user?.role || (user?.isAdmin ? 'admin' : 'user');
   const isAdminRoute = location.pathname.startsWith('/admin');
   const showUserNavbar = Boolean(user) && userRole === 'user' && !isAdminRoute;
-  const showGuestNavbar = !user && !isAdminRoute;
+  const showGuestNavbar = !isAdminRoute && (!user || userRole === 'admin');
 
   return (
     <div className="min-h-screen app-background">
