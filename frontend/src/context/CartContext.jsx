@@ -11,9 +11,11 @@ export const useCart = () => useContext(CartContext);
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null);
   const { user } = useAuth();
+  const userRole = user?.role || (user?.isAdmin ? 'admin' : 'user');
+  const hasShopAccess = Boolean(user) && userRole === 'user';
 
   const fetchCart = async () => {
-    if (!user) {
+    if (!hasShopAccess) {
       setCart(null);
       return;
     }
@@ -27,10 +29,10 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     fetchCart();
-  }, [user]);
+  }, [user, hasShopAccess]);
 
   const addToCart = async (productId, quantity = 1) => {
-    if (!user) {
+    if (!hasShopAccess) {
       toast.error('Please login to add items to cart');
       return false;
     }
@@ -77,7 +79,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const placeOrder = async (checkoutPayload = {}) => {
-    if (!user) {
+    if (!hasShopAccess) {
       toast.error('Please login to place an order');
       return false;
     }
