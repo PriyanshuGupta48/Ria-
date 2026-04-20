@@ -21,9 +21,14 @@ const GuestNavbar = () => {
   return (
     <nav className="navbar-shell sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 sm:py-4">
-        <div className="flex items-center justify-between gap-3">
-          <Link to="/" className="flex-shrink-0">
-            <BrandLogo size="sm" />
+        <div className="flex items-center justify-between gap-3 min-w-0">
+          <Link to="/" className="flex-shrink-0 min-w-0">
+            <div className="md:hidden">
+              <BrandLogo size="sm" showLabel={false} />
+            </div>
+            <div className="hidden md:inline-flex">
+              <BrandLogo size="sm" />
+            </div>
           </Link>
 
           <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-700">
@@ -75,7 +80,7 @@ const GuestNavbar = () => {
             )}
           </div>
 
-          <div className="md:hidden flex items-center gap-3">
+          <div className="md:hidden flex items-center gap-2 sm:gap-3 shrink-0">
             {user && userRole === 'user' && (
               <Link to="/cart" className="relative nav-link">
                 <ShoppingCart size={20} />
@@ -87,38 +92,17 @@ const GuestNavbar = () => {
               </Link>
             )}
 
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="btn-secondary inline-flex items-center justify-center px-4 py-2 rounded-xl"
-              >
-                Logout
-              </button>
-            ) : (
-              <>
-                <Link to="/login" className="btn-secondary inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl">
-                  <UserCircle2 size={16} />
-                  Login
-                </Link>
-                <Link to="/register" className="btn-primary inline-flex items-center justify-center rounded-xl px-4 sm:px-5 py-2">
-                  Sign Up
-                </Link>
-              </>
-            )}
-
-            {user && userRole === 'user' && (
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 hover:bg-rose-50 rounded-lg transition"
-                aria-label="Toggle menu"
-              >
-                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            )}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 hover:bg-rose-50 rounded-lg transition"
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
 
-        {user && userRole === 'user' && isMenuOpen && (
+        {isMenuOpen && (
           <div className="md:hidden mt-3 pb-3 border-t border-rose-100 pt-3">
             <Link
               to="/"
@@ -128,25 +112,49 @@ const GuestNavbar = () => {
               Shop
             </Link>
 
-            <Link
-              to="/my-orders"
-              className="nav-link block py-2 px-2 rounded hover:bg-rose-50"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              My Orders
-            </Link>
-
-            <div className="border-t border-rose-100 mt-3 pt-3">
-              <div className="px-2 py-2 text-sm text-slate-700 break-all mb-2">
-                {user.email}
-              </div>
-              <button
-                onClick={handleLogout}
-                className="btn-secondary w-full"
+            {user && userRole === 'user' && (
+              <Link
+                to="/my-orders"
+                className="nav-link block py-2 px-2 rounded hover:bg-rose-50"
+                onClick={() => setIsMenuOpen(false)}
               >
-                Logout
-              </button>
-            </div>
+                My Orders
+              </Link>
+            )}
+
+            {!user && (
+              <>
+                <Link
+                  to="/login"
+                  className="nav-link block py-2 px-2 rounded hover:bg-rose-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login
+                </Link>
+
+                <Link
+                  to="/register"
+                  className="nav-link block py-2 px-2 rounded hover:bg-rose-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+
+            {user ? (
+              <div className="border-t border-rose-100 mt-3 pt-3">
+                <div className="px-2 py-2 text-sm text-slate-700 break-all mb-2">
+                  {user.email}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="btn-secondary w-full"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
