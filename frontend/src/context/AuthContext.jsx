@@ -139,6 +139,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (credential, successMessage = 'Signed in with Google!') => {
+    try {
+      await warmBackend();
+      const response = await withRetry(() => axios.post(apiUrl('/api/auth/google'), {
+        credential,
+      }), { attempts: 3, delayMs: 1500 });
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(user);
+      toast.success(successMessage);
+      return true;
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Google sign-in failed');
+      return false;
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -148,7 +167,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, adminLogin, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, adminLogin, register, googleLogin, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

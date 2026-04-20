@@ -11,7 +11,18 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: false,
+    default: null
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
+  },
+  googleId: {
+    type: String,
+    default: null,
+    sparse: true
   },
   role: {
     type: String,
@@ -36,12 +47,17 @@ userSchema.pre('save', async function(next) {
     this.role = this.isAdmin ? 'admin' : 'user';
   }
 
+  if (!this.password) return next();
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) {
+    return false;
+  }
+
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

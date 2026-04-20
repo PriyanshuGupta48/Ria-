@@ -20,6 +20,28 @@ Notes:
 - Frontend loads Razorpay Checkout SDK (`checkout.razorpay.com`) and gets order id from backend.
 - Backend verifies signature at `POST /api/orders/payment/verify` before creating order.
 
+## Google Authentication
+
+Normal user auth now uses Google sign-in on both login and register pages. Admin login stays password-based on `/admin-login`.
+
+Add these in `backend/.env`:
+
+```env
+GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
+```
+
+Add this in `frontend/.env`:
+
+```env
+REACT_APP_GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
+```
+
+Google Cloud Console requirements:
+
+- OAuth consent screen configured.
+- Authorized JavaScript origins include your frontend URLs.
+- Use a Web application OAuth client and copy its Client ID to both backend and frontend env.
+
 ## Checkout Flow
 
 1. User verifies mobile number with OTP.
