@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
-import Navbar from './components/Navbar';
 import GuestNavbar from './components/GuestNavbar';
 import Home from './pages/Home';
 import Cart from './pages/Cart';
@@ -32,18 +31,13 @@ function App() {
 }
 
 const AppShell = () => {
-  const { user } = useAuth();
   const location = useLocation();
-  const userRole = user?.role || (user?.isAdmin ? 'admin' : 'user');
   const isAdminRoute = location.pathname.startsWith('/admin');
   const showPublicExtras = !isAdminRoute;
-  const showUserNavbar = Boolean(user) && userRole === 'user' && !isAdminRoute;
-  const showGuestNavbar = !isAdminRoute && !user;
 
   return (
     <div className="min-h-screen app-background">
-      {showUserNavbar && <Navbar />}
-      {showGuestNavbar && <GuestNavbar />}
+      {!isAdminRoute && <GuestNavbar />}
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
