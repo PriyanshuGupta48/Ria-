@@ -6,7 +6,6 @@ export const siteInfo = {
   phoneDigits: '+917302068608',
   email: 'the.dhaaga1@gmail.com',
   instagramUrl: 'https://www.instagram.com/the.dhaaga?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==',
-  whatsappMessage: 'Welcome to Dhaaga..!! Where you find the pretties and wonderful handmade crafts.',
   catalogCategories: ['Gifts', 'Keychains', 'Decorations', 'Accessories', 'Apparel'],
   helpLinks: [
     { label: 'Store Policies', href: '/store-policies' },
@@ -34,6 +33,5 @@ export const getWhatsAppUrl = () => {
   const digits = String(siteInfo.phoneDigits || '').replace(/\D/g, '');
   if (!digits) return '';
 
-  const text = encodeURIComponent(siteInfo.whatsappMessage || 'Hello');
-  return `https://wa.me/${digits}?text=${text}`;
+  return `https://wa.me/${digits}`;
 };
