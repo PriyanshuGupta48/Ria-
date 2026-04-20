@@ -1,14 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, UserCircle2 } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 
 const GuestNavbar = () => {
   return (
     <nav className="navbar-shell sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-3">
-          <Link to="/" className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Dhaaga
+          <Link to="/" className="flex-shrink-0">
+            <BrandLogo size="sm" />
           </Link>
 
           <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-700">

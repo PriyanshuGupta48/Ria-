@@ -16,6 +16,8 @@ import Admin from './pages/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
+import SiteFooter from './components/SiteFooter';
+import WhatsAppFloat from './components/WhatsAppFloat';
 
 function App() {
   return (
@@ -34,6 +36,7 @@ const AppShell = () => {
   const location = useLocation();
   const userRole = user?.role || (user?.isAdmin ? 'admin' : 'user');
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const showPublicExtras = !isAdminRoute;
   const showUserNavbar = Boolean(user) && userRole === 'user' && !isAdminRoute;
   const showGuestNavbar = !isAdminRoute && !user;
 
@@ -82,6 +85,8 @@ const AppShell = () => {
           />
         </Routes>
       </main>
+      {showPublicExtras && <SiteFooter />}
+      {showPublicExtras && <WhatsAppFloat />}
       <Toaster position="bottom-right" />
     </div>
   );

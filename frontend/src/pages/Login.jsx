@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import BrandLogo from '../components/BrandLogo';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -19,11 +20,12 @@ const Login = () => {
   return (
     <div className="auth-screen">
       <div className="auth-card">
+        <BrandLogo className="mb-5" />
         <div className="auth-badge">Welcome back</div>
         <h2 className="auth-title">Sign in to your account</h2>
         <p className="auth-subtitle">
           Or{' '}
-          <Link to="/register" className="text-amber-600 font-semibold hover:text-amber-700">
+          <Link to="/register" className="text-[#8b976c] font-semibold hover:text-[#6f7b57]">
             create a new account
           </Link>
         </p>

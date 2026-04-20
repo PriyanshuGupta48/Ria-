@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ShoppingCart, Menu, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import BrandLogo from './BrandLogo';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -24,8 +25,8 @@ const Navbar = () => {
     <nav className="navbar-shell sticky top-0 z-50">
       <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex justify-between items-center">
-          <Link to="/" className="text-lg sm:text-xl lg:text-2xl font-bold text-rose-500 flex-shrink-0">
-            Dhaaga
+          <Link to="/" className="flex-shrink-0">
+            <BrandLogo size="sm" />
           </Link>
           
           {/* Desktop Menu */}

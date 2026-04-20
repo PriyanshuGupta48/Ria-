@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiUrl, assetUrl } from '../config/api';
+import { siteInfo } from '../config/siteInfo';
 
 const API_BASE = apiUrl();
 
@@ -578,11 +579,11 @@ const Admin = () => {
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
               >
-                <option value="Gifts">Gifts</option>
-                <option value="Keychains">Keychains</option>
-                <option value="Decorations">Decorations</option>
-                <option value="Accessories">Accessories</option>
-                <option value="Apparel">Apparel</option>
+                {siteInfo.catalogCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

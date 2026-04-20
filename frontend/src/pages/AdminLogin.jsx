@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import BrandLogo from '../components/BrandLogo';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -32,6 +33,7 @@ const AdminLogin = () => {
   return (
     <div className="auth-screen auth-screen-admin">
       <div className="auth-card">
+        <BrandLogo className="mb-5" />
         <div className="auth-badge auth-badge-admin">Admin access</div>
         <h2 className="auth-title">Admin sign in</h2>
         <p className="auth-subtitle">

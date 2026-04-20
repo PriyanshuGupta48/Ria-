@@ -1,6 +1,7 @@
 import React from 'react';
+import { siteInfo } from '../config/siteInfo';
 
-const categories = ['All', 'Gifts', 'Keychains', 'Decorations', 'Accessories', 'Apparel'];
+const categories = ['All', ...siteInfo.catalogCategories];
 
 const CategoryFilter = ({ selectedCategory, onCategoryChange }) => {
   return (
