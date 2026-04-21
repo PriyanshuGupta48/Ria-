@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -18,11 +18,22 @@ import { useAuth } from './context/AuthContext';
 import SiteFooter from './components/SiteFooter';
 import WhatsAppFloat from './components/WhatsAppFloat';
 
+const ScrollToTop = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+};
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <CartProvider>
+          <ScrollToTop />
           <AppShell />
         </CartProvider>
       </AuthProvider>

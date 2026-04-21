@@ -5,18 +5,42 @@ import { ArrowRight, Sparkles, ShieldCheck, Truck, Gift } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import CategoryFilter from '../components/CategoryFilter';
 import { apiUrl } from '../config/api';
+import { useAuth } from '../context/AuthContext';
+
+const PRODUCTS_CACHE_KEY = 'dhaaga_products_cache_v1';
+const SLOW_LOAD_HINT_MS = 4500;
 
 const Home = () => {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSlowLoadHint, setShowSlowLoadHint] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   const uniqueCategories = [...new Set(products.map((item) => item.category).filter(Boolean))];
 
   useEffect(() => {
-    fetchProducts();
+    let hasCache = false;
+
+    try {
+      const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
+      if (cached) {
+        const cachedProducts = JSON.parse(cached);
+        if (Array.isArray(cachedProducts) && cachedProducts.length > 0) {
+          hasCache = true;
+          setProducts(cachedProducts);
+          setFilteredProducts(cachedProducts);
+          setLoading(false);
+        }
+      }
+    } catch (error) {
+      // Ignore cache parse issues and continue with network fetch.
+    }
+
+    fetchProducts({ silent: hasCache });
   }, []);
 
   useEffect(() => {
@@ -27,9 +51,19 @@ const Home = () => {
     }
   }, [selectedCategory, products]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async ({ silent = false } = {}) => {
     setLoadError('');
-    setLoading(true);
+    setShowSlowLoadHint(false);
+
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    const slowLoadTimer = setTimeout(() => {
+      setShowSlowLoadHint(true);
+    }, SLOW_LOAD_HINT_MS);
 
     const wakeBackend = async () => {
       try {
@@ -67,20 +101,52 @@ const Home = () => {
       const productList = Array.isArray(response.data) ? response.data : [];
       setProducts(productList);
       setFilteredProducts(productList);
+
+      try {
+        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(productList));
+      } catch (error) {
+        // Ignore localStorage write failures.
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
-      setProducts([]);
-      setFilteredProducts([]);
-      setLoadError('Products are taking longer to load. Please tap retry.');
+
+      if (products.length === 0) {
+        setProducts([]);
+        setFilteredProducts([]);
+        setLoadError('Products are taking longer to load. Please tap retry.');
+      } else {
+        setLoadError('Live catalog is waking up. Showing your last saved products for now.');
+      }
     } finally {
-      setLoading(false);
+      clearTimeout(slowLoadTimer);
+      setShowSlowLoadHint(false);
+
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+      <div className="container mx-auto px-3 sm:px-4 py-10 sm:py-12">
+        <div className="mx-auto max-w-xl rounded-3xl border bg-white p-6 sm:p-8 text-center shadow-sm" style={{ borderColor: 'var(--border-soft)' }}>
+          <div className="flex justify-center items-center h-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+          </div>
+          <p className="text-slate-700 text-sm sm:text-base">Loading products...</p>
+
+          {showSlowLoadHint && (
+            <div className="mt-4 space-y-3">
+              <p className="text-sm text-slate-600">Our server is waking up. This can take a few seconds.</p>
+              <button type="button" onClick={() => fetchProducts()} className="btn-secondary rounded-xl px-4 py-2">
+                Retry now
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -99,12 +165,25 @@ const Home = () => {
               Explore Collection
               <ArrowRight size={16} />
             </a>
-            <Link to="/register" className="btn-secondary inline-flex items-center justify-center text-sm sm:text-base">
-              Create Account
-            </Link>
-            <Link to="/login" className="text-sm sm:text-base font-semibold text-slate-700 px-3 py-2 hover:text-slate-900 transition">
-              Already a member? Sign in
-            </Link>
+            {user ? (
+              <>
+                <Link to="/my-orders" className="btn-secondary inline-flex items-center justify-center text-sm sm:text-base">
+                  My Orders
+                </Link>
+                <Link to="/cart" className="text-sm sm:text-base font-semibold text-slate-700 px-3 py-2 hover:text-slate-900 transition">
+                  Go to Cart
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/register" className="btn-secondary inline-flex items-center justify-center text-sm sm:text-base">
+                  Create Account
+                </Link>
+                <Link to="/login" className="text-sm sm:text-base font-semibold text-slate-700 px-3 py-2 hover:text-slate-900 transition">
+                  Already a member? Sign in
+                </Link>
+              </>
+            )}
           </div>
         </div>
         <div className="hero-stat">
@@ -124,9 +203,15 @@ const Home = () => {
       {loadError && (
         <div className="mb-6 rounded-2xl border bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-3" style={{ borderColor: 'var(--border-soft)' }}>
           <p className="text-sm text-slate-700">{loadError}</p>
-          <button type="button" onClick={fetchProducts} className="btn-secondary rounded-xl px-4 py-2">
+          <button type="button" onClick={() => fetchProducts({ silent: products.length > 0 })} className="btn-secondary rounded-xl px-4 py-2">
             Retry
           </button>
+        </div>
+      )}
+
+      {isRefreshing && (
+        <div className="mb-4 text-xs sm:text-sm text-slate-600">
+          Refreshing catalog with latest products...
         </div>
       )}
 

@@ -6,7 +6,7 @@ import { useCart } from '../context/CartContext';
 import BrandLogo from './BrandLogo';
 
 const GuestNavbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const { cart } = useCart();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -57,7 +57,9 @@ const GuestNavbar = () => {
               </Link>
             )}
 
-            {user ? (
+            {loading ? (
+              <div className="h-10 w-24 rounded-xl bg-rose-50 animate-pulse" aria-hidden="true" />
+            ) : user ? (
               <>
                 <span className="text-xs sm:text-sm text-slate-700 truncate max-w-[180px]">{user.email}</span>
                 <button
@@ -92,17 +94,21 @@ const GuestNavbar = () => {
               </Link>
             )}
 
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 hover:bg-rose-50 rounded-lg transition"
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            {loading ? (
+              <div className="h-10 w-10 rounded-lg bg-rose-50 animate-pulse" aria-hidden="true" />
+            ) : (
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 hover:bg-rose-50 rounded-lg transition"
+                aria-label="Toggle menu"
+              >
+                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            )}
           </div>
         </div>
 
-        {isMenuOpen && (
+        {!loading && isMenuOpen && (
           <div className="md:hidden mt-3 pb-3 border-t border-rose-100 pt-3">
             <Link
               to="/"
