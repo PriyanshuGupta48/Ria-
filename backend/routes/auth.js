@@ -132,7 +132,17 @@ router.post('/google', async (req, res) => {
 
     res.json(signUser(user));
   } catch (error) {
-    res.status(401).json({ message: 'Google authentication failed' });
+    console.error('Google authentication failed:', error.message);
+
+    const message = String(error?.message || 'Google authentication failed');
+    const isConfigError = /GOOGLE_CLIENT_ID|Invalid audience|Wrong number of segments|No pem found|audience/i.test(message);
+
+    res.status(isConfigError ? 400 : 401).json({
+      message: isConfigError
+        ? 'Google auth is misconfigured. Check GOOGLE_CLIENT_ID and authorized origins.'
+        : 'Google authentication failed',
+      error: message,
+    });
   }
 });
 

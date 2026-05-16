@@ -16,6 +16,13 @@ const loadGoogleScript = () => {
     const existingScript = document.querySelector(`script[src="${GOOGLE_SCRIPT_SRC}"]`);
 
     if (existingScript) {
+      const readyState = String(existingScript.readyState || '').toLowerCase();
+
+      if (window.google?.accounts?.id || readyState === 'complete' || readyState === 'loaded') {
+        resolve();
+        return;
+      }
+
       existingScript.addEventListener('load', () => resolve(), { once: true });
       existingScript.addEventListener('error', () => reject(new Error('Failed to load Google script')), { once: true });
       return;
@@ -99,6 +106,7 @@ const GoogleAuthGateway = ({ onCredential, actionLabel = 'continue', helperText 
         window.google.accounts.id.prompt();
       } catch (error) {
         if (!cancelled) {
+          console.error('Google sign-in script initialization failed:', error);
           setErrorMessage('Unable to load Google sign-in. Please try again.');
         }
       }
