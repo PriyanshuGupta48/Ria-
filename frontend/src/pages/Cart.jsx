@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
+import { MapPin, Loader2, Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { apiUrl, assetUrl } from '../config/api';
+
+const PINCODE_LOOKUP_API = 'https://api.postalpincode.in/pincode';
 
 const Cart = () => {
   const { cart, updateQuantity, removeFromCart, getCartTotal, fetchCart } = useCart();
@@ -22,6 +24,12 @@ const Cart = () => {
     state: '',
     country: 'India',
   });
+  const [pincodeLookup, setPincodeLookup] = useState({
+    loading: false,
+    error: '',
+    areas: [],
+    matchedPincode: '',
+  });
   const [quote, setQuote] = useState(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('UPI');
@@ -33,6 +41,116 @@ const Cart = () => {
       currency: 'INR',
       maximumFractionDigits: 2,
     }).format(Number(amount || 0));
+
+  const selectedAreaOptions = useMemo(() => pincodeLookup.areas, [pincodeLookup.areas]);
+
+  const resetPincodeLookup = () => {
+    setPincodeLookup({
+      loading: false,
+      error: '',
+      areas: [],
+      matchedPincode: '',
+    });
+  };
+
+  const updateAddressField = (field, value) => {
+    setAddress((prev) => {
+      if (field === 'pinCode') {
+        const cleanPin = String(value || '').replace(/[^0-9]/g, '').slice(0, 6);
+        const next = { ...prev, pinCode: cleanPin };
+
+        if (cleanPin.length < 6) {
+          resetPincodeLookup();
+          return {
+            ...next,
+            pinCode: cleanPin,
+            city: '',
+            state: '',
+          };
+        }
+
+        return next;
+      }
+
+      return { ...prev, [field]: value };
+    });
+  };
+
+  useEffect(() => {
+    const cleanPin = String(address.pinCode || '').replace(/[^0-9]/g, '').slice(0, 6);
+
+    if (cleanPin.length !== 6) {
+      resetPincodeLookup();
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const debounceTimer = setTimeout(async () => {
+      setPincodeLookup((prev) => ({
+        ...prev,
+        loading: true,
+        error: '',
+      }));
+
+      try {
+        const response = await fetch(`${PINCODE_LOOKUP_API}/${cleanPin}`, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+
+        const data = await response.json();
+        const entry = Array.isArray(data) ? data[0] : null;
+        const success = entry?.Status === 'Success' && Array.isArray(entry.PostOffice) && entry.PostOffice.length > 0;
+
+        if (!success) {
+          setPincodeLookup({
+            loading: false,
+            error: 'No location found for this pincode.',
+            areas: [],
+            matchedPincode: cleanPin,
+          });
+          setAddress((prev) => ({
+            ...prev,
+            city: '',
+            state: '',
+          }));
+          return;
+        }
+
+        const primaryOffice = entry.PostOffice[0];
+        const areas = entry.PostOffice.map((office) => office.Name).filter(Boolean);
+
+        setAddress((prev) => ({
+          ...prev,
+          city: String(primaryOffice.District || '').trim(),
+          state: String(primaryOffice.State || '').trim(),
+        }));
+
+        setPincodeLookup({
+          loading: false,
+          error: '',
+          areas,
+          matchedPincode: cleanPin,
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setPincodeLookup({
+          loading: false,
+          error: 'Unable to auto-detect location. You can enter city and state manually.',
+          areas: [],
+          matchedPincode: cleanPin,
+        });
+      }
+    }, 450);
+
+    return () => {
+      controller.abort();
+      clearTimeout(debounceTimer);
+    };
+  }, [address.pinCode]);
 
   useEffect(() => {
     if (window.Razorpay) {
@@ -71,6 +189,16 @@ const Cart = () => {
     setCustomerName('');
     setContactNumber('');
     setQuote(null);
+    resetPincodeLookup();
+    setAddress({
+      houseNo: '',
+      laneNo: '',
+      landmark: '',
+      city: '',
+      pinCode: '',
+      state: '',
+      country: 'India',
+    });
     setIsCheckoutOpen(true);
   };
 
@@ -86,6 +214,13 @@ const Cart = () => {
     }
 
     setCheckoutStep('address');
+  };
+
+  const selectArea = (areaName) => {
+    setAddress((prev) => ({
+      ...prev,
+      landmark: areaName,
+    }));
   };
 
   const proceedToPayment = async () => {
@@ -383,14 +518,69 @@ const Cart = () => {
 
               {checkoutStep === 'address' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input className="input-field" placeholder="House No" value={address.houseNo} onChange={(e) => setAddress({ ...address, houseNo: e.target.value })} />
-                    <input className="input-field" placeholder="Lane / Street" value={address.laneNo} onChange={(e) => setAddress({ ...address, laneNo: e.target.value })} />
-                    <input className="input-field" placeholder="Nearby Landmark" value={address.landmark} onChange={(e) => setAddress({ ...address, landmark: e.target.value })} />
-                    <input className="input-field" placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
-                    <input className="input-field" placeholder="Pin Code" value={address.pinCode} onChange={(e) => setAddress({ ...address, pinCode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })} />
-                    <input className="input-field" placeholder="State" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4 sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-full bg-white p-2 shadow-sm">
+                        <MapPin size={16} className="text-rose-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-800">Smart address lookup</p>
+                        <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                          Enter the 6 digit pincode and we will auto-fill the city and state.
+                        </p>
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input className="input-field" placeholder="House No" value={address.houseNo} onChange={(e) => updateAddressField('houseNo', e.target.value)} />
+                    <input className="input-field" placeholder="Lane / Street" value={address.laneNo} onChange={(e) => updateAddressField('laneNo', e.target.value)} />
+                    <input className="input-field" placeholder="Nearby Landmark" value={address.landmark} onChange={(e) => updateAddressField('landmark', e.target.value)} />
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <input
+                          className="input-field pr-11"
+                          placeholder="Pin Code"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
+                          maxLength={6}
+                          value={address.pinCode}
+                          onChange={(e) => updateAddressField('pinCode', e.target.value)}
+                        />
+                        {pincodeLookup.loading && (
+                          <Loader2 size={16} className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {pincodeLookup.error || (pincodeLookup.matchedPincode === address.pinCode && pincodeLookup.areas.length > 0 ? `Found ${pincodeLookup.areas.length} locality option(s).` : 'Enter a valid pincode to auto-fill city and state.')}
+                      </p>
+                    </div>
+                    <input className="input-field bg-slate-50" placeholder="City" value={address.city} readOnly />
+                    <input className="input-field bg-slate-50" placeholder="State" value={address.state} readOnly />
+                  </div>
+
+                  {selectedAreaOptions.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">Select area / post office</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+                        {selectedAreaOptions.map((area) => (
+                          <button
+                            key={area}
+                            type="button"
+                            onClick={() => selectArea(area)}
+                            className={`rounded-xl border px-3 py-3 text-left text-sm transition ${
+                              address.landmark === area
+                                ? 'border-rose-400 bg-rose-50 text-slate-800'
+                                : 'border-rose-100 bg-white text-slate-700 hover:bg-rose-50'
+                            }`}
+                          >
+                            <p className="font-semibold">{area}</p>
+                            <p className="text-xs text-slate-500 mt-1">Tap to use this as your locality</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex justify-between">
                     <button type="button" className="btn-secondary" onClick={() => setCheckoutStep('contact')}>
