@@ -16,7 +16,6 @@ const Cart = () => {
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [address, setAddress] = useState({
-    houseNo: '',
     laneNo: '',
     landmark: '',
     city: '',
@@ -191,7 +190,6 @@ const Cart = () => {
     setQuote(null);
     resetPincodeLookup();
     setAddress({
-      houseNo: '',
       laneNo: '',
       landmark: '',
       city: '',
@@ -225,6 +223,22 @@ const Cart = () => {
 
   const proceedToPayment = async () => {
     if (loadingQuote) {
+      return;
+    }
+
+    // Validate required fields
+    if (!address.pinCode.trim() || address.pinCode.length !== 6) {
+      toast.error('Enter a valid 6-digit pincode');
+      return;
+    }
+
+    if (!address.city.trim()) {
+      toast.error('Unable to find city for this pincode. Please try another pincode.');
+      return;
+    }
+
+    if (!address.state.trim()) {
+      toast.error('Unable to find state for this pincode. Please try another pincode.');
       return;
     }
 
@@ -518,29 +532,13 @@ const Cart = () => {
 
               {checkoutStep === 'address' && (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4 sm:p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 rounded-full bg-white p-2 shadow-sm">
-                        <MapPin size={16} className="text-rose-500" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-800">Smart address lookup</p>
-                        <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                          Enter the 6 digit pincode and we will auto-fill the city and state.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input className="input-field" placeholder="House No" value={address.houseNo} onChange={(e) => updateAddressField('houseNo', e.target.value)} />
-                    <input className="input-field" placeholder="Lane / Street" value={address.laneNo} onChange={(e) => updateAddressField('laneNo', e.target.value)} />
-                    <input className="input-field" placeholder="Nearby Landmark" value={address.landmark} onChange={(e) => updateAddressField('landmark', e.target.value)} />
-                    <div className="space-y-2">
+                    <div className="sm:col-span-2 space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">Pin Code <span className="text-rose-500">*</span></label>
                       <div className="relative">
                         <input
                           className="input-field pr-11"
-                          placeholder="Pin Code"
+                          placeholder="Enter 6 digit pincode"
                           inputMode="numeric"
                           autoComplete="postal-code"
                           maxLength={6}
@@ -555,32 +553,15 @@ const Cart = () => {
                         {pincodeLookup.error || (pincodeLookup.matchedPincode === address.pinCode && pincodeLookup.areas.length > 0 ? `Found ${pincodeLookup.areas.length} locality option(s).` : 'Enter a valid pincode to auto-fill city and state.')}
                       </p>
                     </div>
+
                     <input className="input-field bg-slate-50" placeholder="City" value={address.city} readOnly />
                     <input className="input-field bg-slate-50" placeholder="State" value={address.state} readOnly />
-                  </div>
 
-                  {selectedAreaOptions.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">Select area / post office</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                        {selectedAreaOptions.map((area) => (
-                          <button
-                            key={area}
-                            type="button"
-                            onClick={() => selectArea(area)}
-                            className={`rounded-xl border px-3 py-3 text-left text-sm transition ${
-                              address.landmark === area
-                                ? 'border-rose-400 bg-rose-50 text-slate-800'
-                                : 'border-rose-100 bg-white text-slate-700 hover:bg-rose-50'
-                            }`}
-                          >
-                            <p className="font-semibold">{area}</p>
-                            <p className="text-xs text-slate-500 mt-1">Tap to use this as your locality</p>
-                          </button>
-                        ))}
-                      </div>
+                    <input className="input-field" placeholder="Lane / Street" value={address.laneNo} onChange={(e) => updateAddressField('laneNo', e.target.value)} />
+                    <div className="sm:col-span-2">
+                      <input className="input-field" placeholder="Nearby Landmark" value={address.landmark} onChange={(e) => updateAddressField('landmark', e.target.value)} />
                     </div>
-                  )}
+                  </div>
 
                   <div className="flex justify-between">
                     <button type="button" className="btn-secondary" onClick={() => setCheckoutStep('contact')}>
