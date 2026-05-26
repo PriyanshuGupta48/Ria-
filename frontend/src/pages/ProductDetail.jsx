@@ -230,7 +230,7 @@ const ProductDetail = () => {
           {/* Gallery */}
           <div className="space-y-3 lg:space-y-4">
             <div className="relative rounded-3xl overflow-hidden h-72 sm:h-96 lg:h-[34rem] flex items-center justify-center border shadow-md bg-white" style={{ borderColor: 'var(--border-soft)' }}>
-              <img src={assetUrl(currentImage)} alt={product.name} className="w-full h-full object-cover" />
+              <img src={assetUrl(currentImage)} alt={product.name} className="w-full h-full object-contain object-center bg-white" />
               {images.length > 1 && (
                 <>
                   <button
@@ -261,7 +261,7 @@ const ProductDetail = () => {
                     }`}
                     style={{ borderColor: activePhotoIndex === idx ? 'var(--brand-primary)' : 'var(--border-soft)' }}
                   >
-                    <img src={assetUrl(img)} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                    <img src={assetUrl(img)} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover object-center bg-white" />
                   </button>
                 ))}
               </div>

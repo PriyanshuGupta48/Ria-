@@ -27,6 +27,16 @@ export const assetUrl = (path = '') => {
   }
 
   if (/^https?:\/\//i.test(path)) {
+    // If the asset is a Cloudinary URL, inject a default transformation
+    try {
+      const cloudinaryTransform = process.env.REACT_APP_CLOUDINARY_TRANSFORM || 'c_pad,ar_4:3,b_white,q_auto,f_auto,w_800';
+      if (path.includes('res.cloudinary.com') && path.includes('/upload/')) {
+        return path.replace('/upload/', `/upload/${cloudinaryTransform}/`);
+      }
+    } catch (e) {
+      // ignore and fall back to original path
+    }
+
     return path;
   }
 

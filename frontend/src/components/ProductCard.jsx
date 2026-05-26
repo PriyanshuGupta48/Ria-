@@ -31,7 +31,7 @@ const ProductCard = ({ product }) => {
         <img
           src={assetUrl(activePhoto)}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          className="w-full h-full object-contain object-center bg-white"
         />
         <div className="absolute top-3 left-3">
           <span className="product-chip">
