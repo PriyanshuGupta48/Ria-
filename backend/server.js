@@ -29,6 +29,42 @@ app.get('/api/ping', (req, res) => {
   res.json({ ok: true });
 });
 
+// Proxy pincode lookup to avoid browser CORS issues and provide a stable backend fallback
+const https = require('https');
+
+app.get('/api/utils/pincode/:pincode', async (req, res) => {
+  const raw = String(req.params.pincode || '');
+  const pincode = raw.replace(/\D/g, '').slice(0, 6);
+
+  if (pincode.length !== 6) {
+    return res.status(400).json({ message: 'Invalid pincode' });
+  }
+
+  try {
+    const apiUrl = `https://api.postalpincode.in/pincode/${pincode}`;
+
+    https.get(apiUrl, (apiRes) => {
+      let raw = '';
+      apiRes.on('data', (chunk) => (raw += chunk));
+      apiRes.on('end', () => {
+        try {
+          const data = JSON.parse(raw);
+          return res.json(data);
+        } catch (parseErr) {
+          console.error('Pincode lookup parse failed:', parseErr?.message || parseErr);
+          return res.status(502).json({ message: 'Invalid response from postal API', error: String(parseErr?.message || parseErr) });
+        }
+      });
+    }).on('error', (e) => {
+      console.error('Pincode lookup HTTP error:', e?.message || e);
+      return res.status(502).json({ message: 'Failed to fetch pincode data', error: String(e?.message || e) });
+    });
+  } catch (err) {
+    console.error('Pincode lookup failed:', err?.message || err);
+    return res.status(502).json({ message: 'Failed to fetch pincode data', error: String(err?.message || err) });
+  }
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -99,3 +135,7 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Note: Provide a lightweight https-based fetch fallback for environments
+// where global `fetch` isn't available. The /api/utils/pincode route uses
+// the builtin `https` module to avoid adding dependencies.

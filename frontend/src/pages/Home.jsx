@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles, ShieldCheck, Truck, Gift } from 'lucide-react';
+import { ArrowRight, Gift } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import CategoryFilter from '../components/CategoryFilter';
 import { apiUrl } from '../config/api';
@@ -215,23 +215,7 @@ const Home = () => {
         </div>
       )}
 
-      <section id="why-dhaaga" className="mb-8 sm:mb-10 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-        <article className="value-card">
-          <Sparkles size={18} className="text-brand-accent" />
-          <h3 className="value-title">Unique Designs</h3>
-          <p className="value-text">Each item carries a handmade finish, so your order feels one-of-a-kind.</p>
-        </article>
-        <article className="value-card">
-          <ShieldCheck size={18} className="text-brand-accent" />
-          <h3 className="value-title">Secure Payments</h3>
-          <p className="value-text">Razorpay-backed checkout with verified transaction flow.</p>
-        </article>
-        <article className="value-card">
-          <Truck size={18} className="text-brand-accent" />
-          <h3 className="value-title">Reliable Delivery</h3>
-          <p className="value-text">Transparent shipping quotes and smooth order tracking.</p>
-        </article>
-      </section>
+      {/* Removed three-value feature cards section as requested */}
 
       <section id="product-catalog" className="mb-4">
         <div className="flex flex-wrap items-end justify-between gap-3 mb-4">

@@ -243,8 +243,9 @@ const verifyMsg91Otp = async (contactNumber, otp) => {
 };
 
 const normalizeAddress = (rawAddress = {}) => ({
-  houseNo: String(rawAddress.houseNo || '').trim(),
-  laneNo: String(rawAddress.laneNo || '').trim(),
+  // Accept `laneNo` as a fallback for `houseNo` because frontend may send lane/street instead
+  houseNo: String(rawAddress.houseNo || rawAddress.laneNo || '').trim(),
+  laneNo: String(rawAddress.laneNo || rawAddress.houseNo || '').trim(),
   landmark: String(rawAddress.landmark || '').trim(),
   city: String(rawAddress.city || '').trim(),
   pinCode: String(rawAddress.pinCode || '').trim(),
@@ -253,7 +254,8 @@ const normalizeAddress = (rawAddress = {}) => ({
 });
 
 const validateAddress = (address) => {
-  const requiredFields = ['houseNo', 'laneNo', 'landmark', 'city', 'pinCode', 'state'];
+  // Require essential routing fields including houseNo for accurate courier delivery
+  const requiredFields = ['houseNo', 'city', 'pinCode', 'state'];
   for (const field of requiredFields) {
     if (!address[field]) {
       return `Address field '${field}' is required`;
@@ -597,6 +599,7 @@ const buildDelhiveryShipmentPayload = (order) => {
     state: String(shippingAddress.state || '').trim(),
     pin: String(shippingAddress.pinCode || '').trim(),
     country: String(shippingAddress.country || 'India').trim(),
+    address_note: [String(shippingAddress.laneNo || '').trim(), String(shippingAddress.landmark || '').trim()].filter(Boolean).join(' - '),
     shipment_length: packageMetrics.lengthCm,
     shipment_breadth: packageMetrics.breadthCm,
     shipment_height: packageMetrics.heightCm,

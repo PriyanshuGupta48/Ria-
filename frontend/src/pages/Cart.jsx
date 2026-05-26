@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { MapPin, Loader2, Trash2, Minus, Plus, ShoppingBag, X } from 'lucide-react';
@@ -6,7 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { apiUrl, assetUrl } from '../config/api';
 
-const PINCODE_LOOKUP_API = 'https://api.postalpincode.in/pincode';
+// Auto pincode lookup removed per user request; keep manual entry for city/state
 
 const Cart = () => {
   const { cart, updateQuantity, removeFromCart, getCartTotal, fetchCart } = useCart();
@@ -23,16 +23,12 @@ const Cart = () => {
     state: '',
     country: 'India',
   });
-  const [pincodeLookup, setPincodeLookup] = useState({
-    loading: false,
-    error: '',
-    areas: [],
-    matchedPincode: '',
-  });
+  // pincode auto-lookup removed; no extra state required
   const [quote, setQuote] = useState(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [placingOrder, setPlacingOrder] = useState(false);
+  const laneRef = useRef(null);
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-IN', {
@@ -41,116 +37,18 @@ const Cart = () => {
       maximumFractionDigits: 2,
     }).format(Number(amount || 0));
 
-  const selectedAreaOptions = useMemo(() => pincodeLookup.areas, [pincodeLookup.areas]);
-
-  const resetPincodeLookup = () => {
-    setPincodeLookup({
-      loading: false,
-      error: '',
-      areas: [],
-      matchedPincode: '',
-    });
-  };
+  const selectedAreaOptions = [];
 
   const updateAddressField = (field, value) => {
     setAddress((prev) => {
       if (field === 'pinCode') {
         const cleanPin = String(value || '').replace(/[^0-9]/g, '').slice(0, 6);
-        const next = { ...prev, pinCode: cleanPin };
-
-        if (cleanPin.length < 6) {
-          resetPincodeLookup();
-          return {
-            ...next,
-            pinCode: cleanPin,
-            city: '',
-            state: '',
-          };
-        }
-
-        return next;
+        return { ...prev, pinCode: cleanPin };
       }
 
       return { ...prev, [field]: value };
     });
   };
-
-  useEffect(() => {
-    const cleanPin = String(address.pinCode || '').replace(/[^0-9]/g, '').slice(0, 6);
-
-    if (cleanPin.length !== 6) {
-      resetPincodeLookup();
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    const debounceTimer = setTimeout(async () => {
-      setPincodeLookup((prev) => ({
-        ...prev,
-        loading: true,
-        error: '',
-      }));
-
-      try {
-        const response = await fetch(`${PINCODE_LOOKUP_API}/${cleanPin}`, {
-          method: 'GET',
-          signal: controller.signal,
-        });
-
-        const data = await response.json();
-        const entry = Array.isArray(data) ? data[0] : null;
-        const success = entry?.Status === 'Success' && Array.isArray(entry.PostOffice) && entry.PostOffice.length > 0;
-
-        if (!success) {
-          setPincodeLookup({
-            loading: false,
-            error: 'No location found for this pincode.',
-            areas: [],
-            matchedPincode: cleanPin,
-          });
-          setAddress((prev) => ({
-            ...prev,
-            city: '',
-            state: '',
-          }));
-          return;
-        }
-
-        const primaryOffice = entry.PostOffice[0];
-        const areas = entry.PostOffice.map((office) => office.Name).filter(Boolean);
-
-        setAddress((prev) => ({
-          ...prev,
-          city: String(primaryOffice.District || '').trim(),
-          state: String(primaryOffice.State || '').trim(),
-        }));
-
-        setPincodeLookup({
-          loading: false,
-          error: '',
-          areas,
-          matchedPincode: cleanPin,
-        });
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setPincodeLookup({
-          loading: false,
-          error: 'Unable to auto-detect location. You can enter city and state manually.',
-          areas: [],
-          matchedPincode: cleanPin,
-        });
-      }
-    }, 450);
-
-    return () => {
-      controller.abort();
-      clearTimeout(debounceTimer);
-    };
-  }, [address.pinCode]);
-
   useEffect(() => {
     if (window.Razorpay) {
       return;
@@ -188,7 +86,6 @@ const Cart = () => {
     setCustomerName('');
     setContactNumber('');
     setQuote(null);
-    resetPincodeLookup();
     setAddress({
       laneNo: '',
       landmark: '',
@@ -214,12 +111,7 @@ const Cart = () => {
     setCheckoutStep('address');
   };
 
-  const selectArea = (areaName) => {
-    setAddress((prev) => ({
-      ...prev,
-      landmark: areaName,
-    }));
-  };
+  
 
   const proceedToPayment = async () => {
     if (loadingQuote) {
@@ -233,12 +125,17 @@ const Cart = () => {
     }
 
     if (!address.city.trim()) {
-      toast.error('Unable to find city for this pincode. Please try another pincode.');
+      toast.error('Enter the city for delivery');
       return;
     }
 
     if (!address.state.trim()) {
-      toast.error('Unable to find state for this pincode. Please try another pincode.');
+      toast.error('Enter the state for delivery');
+      return;
+    }
+
+    if (!String(address.houseNo || '').trim()) {
+      toast.error('Enter House/Flat number for accurate delivery');
       return;
     }
 
@@ -545,19 +442,16 @@ const Cart = () => {
                           value={address.pinCode}
                           onChange={(e) => updateAddressField('pinCode', e.target.value)}
                         />
-                        {pincodeLookup.loading && (
-                          <Loader2 size={16} className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />
-                        )}
                       </div>
-                      <p className="text-xs text-slate-500">
-                        {pincodeLookup.error || (pincodeLookup.matchedPincode === address.pinCode && pincodeLookup.areas.length > 0 ? `Found ${pincodeLookup.areas.length} locality option(s).` : 'Enter a valid pincode to auto-fill city and state.')}
-                      </p>
                     </div>
 
-                    <input className="input-field bg-slate-50" placeholder="City" value={address.city} readOnly />
-                    <input className="input-field bg-slate-50" placeholder="State" value={address.state} readOnly />
+                    <input className="input-field bg-slate-50" placeholder="City" value={address.city} onChange={(e) => updateAddressField('city', e.target.value)} />
+                    <input className="input-field bg-slate-50" placeholder="State" value={address.state} onChange={(e) => updateAddressField('state', e.target.value)} />
 
-                    <input className="input-field" placeholder="Lane / Street" value={address.laneNo} onChange={(e) => updateAddressField('laneNo', e.target.value)} />
+                    <div>
+                      <input className="input-field" placeholder="House No / Flat" value={address.houseNo || ''} onChange={(e) => updateAddressField('houseNo', e.target.value)} />
+                    </div>
+                    <input ref={laneRef} className="input-field" placeholder="Lane / Street" value={address.laneNo} onChange={(e) => updateAddressField('laneNo', e.target.value)} />
                     <div className="sm:col-span-2">
                       <input className="input-field" placeholder="Nearby Landmark" value={address.landmark} onChange={(e) => updateAddressField('landmark', e.target.value)} />
                     </div>
