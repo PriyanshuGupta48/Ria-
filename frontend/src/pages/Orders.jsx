@@ -258,6 +258,18 @@ const Orders = () => {
                 </div>
               </div>
 
+              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-slate-700">
+                <p className="font-semibold text-slate-800 mb-2">Coupon Summary</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <p>
+                    Coupon Used: <span className="font-semibold text-slate-800">{order.couponCode || 'None'}</span>
+                  </p>
+                  <p>
+                    Discount Saved: <span className="font-semibold text-slate-800">{formatCurrency(order.discountAmount || 0)}</span>
+                  </p>
+                </div>
+              </div>
+
               <div className="mt-5 border-t border-rose-100 pt-4">
                 <p className="text-sm font-semibold text-slate-700 mb-3">Items</p>
                 <div className="space-y-3">

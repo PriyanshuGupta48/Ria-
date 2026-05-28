@@ -49,7 +49,7 @@ const AppShell = () => {
   return (
     <div className="min-h-screen app-background">
       {!isAdminRoute && <GuestNavbar />}
-      <main>
+      <main className="pb-44 sm:pb-48 lg:pb-40">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/product/:id" element={<ProductDetail />} />

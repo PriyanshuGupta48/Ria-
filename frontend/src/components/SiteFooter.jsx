@@ -25,12 +25,12 @@ const FooterLink = ({ href, label }) => {
 const SiteFooter = () => {
   return (
     <footer className="site-footer mt-10 sm:mt-14">
-      <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 sm:gap-10">
+      <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
           <section>
             <BrandLogo size="lg" className="site-footer-brand" />
 
-            <div className="mt-5 space-y-4 text-sm sm:text-base text-amber-50/90">
+            <div className="mt-3 space-y-3 text-sm text-amber-50/90">
               <div className="site-footer-contact-row">
                 <MapPin size={18} />
                 <p>{siteInfo.address}</p>
@@ -45,7 +45,7 @@ const SiteFooter = () => {
               </div>
             </div>
 
-            <div className="mt-5 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-3">
               <p className="font-semibold text-amber-50">Connect with us</p>
               <a
                 href={siteInfo.instagramUrl}
@@ -87,14 +87,14 @@ const SiteFooter = () => {
           </section>
         </div>
 
-        <div className="mt-8 pt-5 border-t border-amber-200/40 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+        <div className="mt-4 pt-3 border-t border-amber-200/30 flex flex-col lg:flex-row gap-2 lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2 text-amber-50/95">
-            <span className="font-semibold mr-1">We accept</span>
+            <span className="font-semibold mr-1 text-xs sm:text-sm">We accept</span>
             {siteInfo.paymentMethods.map((item) => (
-              <span key={item} className="site-footer-pill">{item}</span>
+              <span key={item} className="site-footer-pill text-[11px] sm:text-xs">{item}</span>
             ))}
           </div>
-          <p className="text-amber-50/80 text-sm">Built for handmade businesses</p>
+          <p className="text-amber-50/80 text-[11px] sm:text-xs">Built for handmade businesses</p>
         </div>
       </div>
     </footer>

@@ -23,6 +23,12 @@ const Cart = () => {
     state: '',
     country: 'India',
   });
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [offersOpen, setOffersOpen] = useState(false);
   // pincode auto-lookup removed; no extra state required
   const [quote, setQuote] = useState(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
@@ -66,6 +72,64 @@ const Cart = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const fetchAvailableCoupons = async () => {
+      if (!cart?.items?.length) {
+        setAvailableCoupons([]);
+        return;
+      }
+
+      setLoadingCoupons(true);
+      try {
+        const response = await axios.get(apiUrl('/api/available-coupons'));
+        setAvailableCoupons(Array.isArray(response.data?.offers) ? response.data.offers : []);
+      } catch (error) {
+        setAvailableCoupons([]);
+      } finally {
+        setLoadingCoupons(false);
+      }
+    };
+
+    fetchAvailableCoupons();
+  }, [cart]);
+
+  useEffect(() => {
+    if (!appliedCoupon?.code || !cart?.items?.length) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const refreshCoupon = async () => {
+      try {
+        const response = await axios.post(apiUrl('/api/apply-coupon'), {
+          code: appliedCoupon.code,
+        });
+
+        if (isCancelled) return;
+
+        setAppliedCoupon(response.data?.coupon ? {
+          ...response.data.coupon,
+          discountAmount: Number(response.data.discountAmount || 0),
+          subtotalAmount: Number(response.data.subtotalAmount || 0),
+          finalSubtotal: Number(response.data.finalSubtotal || 0),
+          freeDelivery: Boolean(response.data.freeDelivery),
+        } : null);
+      } catch (error) {
+        if (isCancelled) return;
+        setAppliedCoupon(null);
+        setCouponCode('');
+        toast.error(error.response?.data?.message || 'Coupon is no longer valid');
+      }
+    };
+
+    refreshCoupon();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [cart]);
+
   const loadRazorpaySdk = () => {
     if (window.Razorpay) {
       return Promise.resolve(true);
@@ -79,6 +143,58 @@ const Cart = () => {
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
     });
+  };
+
+  const applyCoupon = async (code = couponCode.trim()) => {
+    const couponToApply = String(code || '').trim().toUpperCase();
+    if (!couponToApply) {
+      toast.error('Enter a coupon code');
+      return;
+    }
+
+    setCouponBusy(true);
+    try {
+      const response = await axios.post(apiUrl('/api/apply-coupon'), {
+        code: couponToApply,
+      });
+
+      const applied = response.data?.coupon
+        ? {
+            ...response.data.coupon,
+            discountAmount: Number(response.data.discountAmount || 0),
+            subtotalAmount: Number(response.data.subtotalAmount || 0),
+            finalSubtotal: Number(response.data.finalSubtotal || 0),
+            freeDelivery: Boolean(response.data.freeDelivery),
+          }
+        : null;
+
+      setCouponCode(applied?.code || couponToApply);
+      setAppliedCoupon(applied);
+      setQuote(null);
+      toast.success(response.data?.message || 'Coupon applied');
+      return applied;
+    } catch (error) {
+      setAppliedCoupon(null);
+      toast.error(error.response?.data?.message || 'Invalid coupon');
+      return null;
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const removeCoupon = async () => {
+    setCouponBusy(true);
+    try {
+      await axios.post(apiUrl('/api/remove-coupon'));
+    } catch (error) {
+      // Coupon state is local to the checkout flow; clear it even if the no-op endpoint fails.
+    } finally {
+      setAppliedCoupon(null);
+      setCouponCode('');
+      setQuote(null);
+      setCouponBusy(false);
+      toast.success('Coupon removed');
+    }
   };
 
   const openCheckoutPopup = () => {
@@ -143,6 +259,7 @@ const Cart = () => {
     try {
       const response = await axios.post(apiUrl('/api/orders/quote'), {
         address,
+        couponCode: appliedCoupon?.code || '',
       });
       setQuote(response.data);
       setCheckoutStep('payment');
@@ -180,6 +297,7 @@ const Cart = () => {
         contactNumber,
         address,
         paymentMethod,
+        couponCode: appliedCoupon?.code || '',
       });
 
       const { keyId, razorpayOrder } = createOrderResponse.data || {};
@@ -219,12 +337,16 @@ const Cart = () => {
                 contactNumber,
                 address,
                 paymentMethod,
+                couponCode: appliedCoupon?.code || '',
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
               });
 
               await fetchCart();
+              setAppliedCoupon(null);
+              setCouponCode('');
+              setAvailableCoupons([]);
               setIsCheckoutOpen(false);
               toast.success('Payment successful. Order placed!');
               navigate('/my-orders');
@@ -334,16 +456,111 @@ const Cart = () => {
                 <span className="font-semibold">{formatCurrency(getCartTotal())}</span>
               </div>
               <div className="flex justify-between text-sm sm:text-base">
+                <span className="text-gray-600">Discount</span>
+                <span className="font-semibold text-emerald-600">
+                  -{formatCurrency(appliedCoupon?.discountAmount || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600">Shipping</span>
                 <span className="text-gray-700">Calculated at checkout</span>
               </div>
+              {appliedCoupon?.code && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                  <p className="font-semibold">Applied Coupon: {appliedCoupon.code}</p>
+                  <p className="mt-1">You saved {formatCurrency(appliedCoupon.discountAmount || 0)}</p>
+                </div>
+              )}
               <div className="border-t pt-2 mt-2">
                 <div className="flex justify-between">
                   <span className="text-base sm:text-lg font-bold">Total</span>
-                  <span className="text-xl sm:text-2xl font-bold text-rose-600">{formatCurrency(getCartTotal())}</span>
+                  <span className="text-xl sm:text-2xl font-bold text-rose-600">
+                    {formatCurrency(Math.max(getCartTotal() - (appliedCoupon?.discountAmount || 0), 0))}
+                  </span>
                 </div>
               </div>
             </div>
+
+            <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4 mb-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm sm:text-base font-bold text-slate-800">Apply Coupon</h3>
+                {appliedCoupon?.code ? (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                    onClick={removeCoupon}
+                    disabled={couponBusy}
+                  >
+                    Remove coupon
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  className="input-field flex-1"
+                />
+                <button
+                  type="button"
+                  className="btn-primary whitespace-nowrap"
+                  onClick={() => applyCoupon()}
+                  disabled={couponBusy}
+                >
+                  {couponBusy ? 'Applying...' : 'Apply'}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="w-full flex items-center justify-between rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                onClick={() => setOffersOpen((prev) => !prev)}
+              >
+                <span>Available Offers</span>
+                <span>{offersOpen ? '−' : '+'}</span>
+              </button>
+
+              {offersOpen && (
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {loadingCoupons ? (
+                    <p className="text-sm text-slate-500">Loading offers...</p>
+                  ) : availableCoupons.length === 0 ? (
+                    <p className="text-sm text-slate-500">No active coupons available right now.</p>
+                  ) : (
+                    availableCoupons.map((offer) => (
+                      <div key={offer._id} className="rounded-2xl border border-white bg-white p-3 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-800">{offer.code}</p>
+                            <p className="text-xs text-slate-600 mt-1">{offer.discountLabel}</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                            onClick={() => applyCoupon(offer.code)}
+                            disabled={couponBusy || !offer.isApplicable}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                        <div className="mt-2 space-y-1 text-xs text-slate-600">
+                          <p>Minimum order {formatCurrency(offer.minOrderAmount || 0)}</p>
+                          <p>Expires {offer.expiryLabel || 'Not set'}</p>
+                          {offer.freeDelivery && <p>Includes free delivery</p>}
+                          {!offer.isApplicable && offer.eligibilityReason && (
+                            <p className="text-amber-700">{offer.eligibilityReason}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2 sm:space-y-3">
               <Link to="/" className="btn-primary w-full text-center block text-sm sm:text-base">
                 Continue Shopping
@@ -478,9 +695,19 @@ const Cart = () => {
                         <span className="font-semibold">{formatCurrency(quote?.subtotal || getCartTotal())}</span>
                       </div>
                       <div className="flex justify-between text-slate-700">
+                        <span>Discount</span>
+                        <span className="font-semibold text-emerald-700">-{formatCurrency(quote?.discountAmount || appliedCoupon?.discountAmount || 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-700">
                         <span>Delivery Charges ({quote?.deliveryPartner || 'Delhivery One'})</span>
                         <span className="font-semibold">{formatCurrency(quote?.deliveryCharge || 0)}</span>
                       </div>
+                      {quote?.coupon?.code && (
+                        <div className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-emerald-900">
+                          <p className="text-xs font-semibold">Applied Coupon: {quote.coupon.code}</p>
+                          <p className="text-xs mt-1">You saved {formatCurrency(quote.discountAmount || 0)}</p>
+                        </div>
+                      )}
                       {quote?.estimatedDeliveryDays && (
                         <div className="flex justify-between text-slate-700">
                           <span>Estimated Delivery</span>

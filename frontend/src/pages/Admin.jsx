@@ -17,6 +17,7 @@ import {
   XCircle,
   Boxes,
   IndianRupee,
+  Tag,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiUrl, assetUrl } from '../config/api';
@@ -36,6 +37,7 @@ const TAB_ITEMS = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'products', label: 'Add/Edit Items', icon: PackagePlus },
   { key: 'orders', label: 'Accept Orders', icon: ClipboardList },
+  { key: 'coupons', label: 'Coupons', icon: Tag },
   { key: 'insights', label: 'Monthly Insights', icon: LineChart },
   { key: 'settings', label: 'More Options', icon: Settings },
 ];
@@ -65,6 +67,22 @@ const EMPTY_DETAILS = {
   pattern: '',
   careInstructions: '',
   origin: '',
+};
+
+const EMPTY_COUPON_FORM = {
+  code: '',
+  discountType: 'percentage',
+  discountValue: '',
+  minOrderAmount: '',
+  maxDiscount: '',
+  expiryDate: '',
+  usageLimit: '',
+  activeStatus: true,
+  firstOrderOnly: false,
+  oneTimePerUser: false,
+  freeDelivery: false,
+  applicableCategories: [],
+  applicableProducts: [],
 };
 
 const toDateInputValue = (value) => {
@@ -115,6 +133,12 @@ const Admin = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [orderScheduleById, setOrderScheduleById] = useState({});
+  const [coupons, setCoupons] = useState([]);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponSaving, setCouponSaving] = useState(false);
+  const [editingCouponId, setEditingCouponId] = useState(null);
+  const [couponForm, setCouponForm] = useState(EMPTY_COUPON_FORM);
+  const [couponProductSearch, setCouponProductSearch] = useState('');
 
   useEffect(() => {
     const previewUrls = images.map((file) => URL.createObjectURL(file));
@@ -173,6 +197,170 @@ const Admin = () => {
       setInsights(insightsRes.data);
     } catch (error) {
       toast.error('Failed to refresh order data');
+    }
+  };
+
+  const fetchCoupons = async () => {
+    setCouponLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE}/api/admin/coupons`);
+      setCoupons(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      toast.error('Failed to load coupons');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'coupons') {
+      fetchCoupons();
+    }
+  }, [activeTab]);
+
+  const resetCouponForm = () => {
+    setEditingCouponId(null);
+    setCouponProductSearch('');
+    setCouponForm(EMPTY_COUPON_FORM);
+  };
+
+  const updateCouponField = (field, value) => {
+    setCouponForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const toggleCouponCategory = (category) => {
+    setCouponForm((prev) => {
+      const exists = prev.applicableCategories.includes(category);
+      return {
+        ...prev,
+        applicableCategories: exists
+          ? prev.applicableCategories.filter((item) => item !== category)
+          : [...prev.applicableCategories, category],
+      };
+    });
+  };
+
+  const toggleCouponProduct = (productId) => {
+    setCouponForm((prev) => {
+      const exists = prev.applicableProducts.includes(productId);
+      return {
+        ...prev,
+        applicableProducts: exists
+          ? prev.applicableProducts.filter((item) => item !== productId)
+          : [...prev.applicableProducts, productId],
+      };
+    });
+  };
+
+  const startEditCoupon = (coupon) => {
+    setEditingCouponId(coupon._id);
+    setCouponForm({
+      code: coupon.code || '',
+      discountType: coupon.discountType || 'percentage',
+      discountValue: String(coupon.discountValue ?? ''),
+      minOrderAmount: String(coupon.minOrderAmount ?? ''),
+      maxDiscount: coupon.maxDiscount === null || coupon.maxDiscount === undefined ? '' : String(coupon.maxDiscount),
+      expiryDate: toDateInputValue(coupon.expiryDate),
+      usageLimit: coupon.usageLimit === null || coupon.usageLimit === undefined ? '' : String(coupon.usageLimit),
+      activeStatus: Boolean(coupon.activeStatus),
+      firstOrderOnly: Boolean(coupon.firstOrderOnly),
+      oneTimePerUser: Boolean(coupon.oneTimePerUser),
+      freeDelivery: Boolean(coupon.freeDelivery),
+      applicableCategories: Array.isArray(coupon.applicableCategories) ? coupon.applicableCategories : [],
+      applicableProducts: Array.isArray(coupon.applicableProducts) ? coupon.applicableProducts : [],
+    });
+    setActiveTab('coupons');
+  };
+
+  const handleCouponSubmit = async (e) => {
+    e.preventDefault();
+    setCouponSaving(true);
+
+    const payload = {
+      ...couponForm,
+      code: String(couponForm.code || '').trim().toUpperCase(),
+      discountValue: Number(couponForm.discountValue),
+      minOrderAmount: Number(couponForm.minOrderAmount || 0),
+      maxDiscount: couponForm.maxDiscount === '' ? null : Number(couponForm.maxDiscount),
+      expiryDate: couponForm.expiryDate,
+      usageLimit: couponForm.usageLimit === '' ? null : Number(couponForm.usageLimit),
+      activeStatus: Boolean(couponForm.activeStatus),
+      firstOrderOnly: Boolean(couponForm.firstOrderOnly),
+      oneTimePerUser: Boolean(couponForm.oneTimePerUser),
+      freeDelivery: Boolean(couponForm.freeDelivery),
+      applicableCategories: couponForm.applicableCategories,
+      applicableProducts: couponForm.applicableProducts,
+    };
+
+    try {
+      if (!payload.code) {
+        toast.error('Coupon code is required');
+        return;
+      }
+
+      if (!payload.expiryDate) {
+        toast.error('Expiry date is required');
+        return;
+      }
+
+      if (editingCouponId) {
+        await axios.put(`${API_BASE}/api/admin/update-coupon/${editingCouponId}`, payload);
+        toast.success('Coupon updated successfully');
+      } else {
+        await axios.post(`${API_BASE}/api/admin/create-coupon`, payload);
+        toast.success('Coupon created successfully');
+      }
+
+      resetCouponForm();
+      await fetchCoupons();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save coupon');
+    } finally {
+      setCouponSaving(false);
+    }
+  };
+
+  const deleteCoupon = async (couponId) => {
+    if (!window.confirm('Delete this coupon?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_BASE}/api/admin/delete-coupon/${couponId}`);
+      toast.success('Coupon deleted');
+      if (editingCouponId === couponId) {
+        resetCouponForm();
+      }
+      await fetchCoupons();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete coupon');
+    }
+  };
+
+  const toggleCouponStatus = async (coupon) => {
+    try {
+      await axios.put(`${API_BASE}/api/admin/update-coupon/${coupon._id}`, {
+        code: coupon.code,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        minOrderAmount: coupon.minOrderAmount,
+        maxDiscount: coupon.maxDiscount,
+        expiryDate: coupon.expiryDate,
+        usageLimit: coupon.usageLimit,
+        activeStatus: !coupon.activeStatus,
+        firstOrderOnly: coupon.firstOrderOnly,
+        oneTimePerUser: coupon.oneTimePerUser,
+        freeDelivery: coupon.freeDelivery,
+        applicableCategories: coupon.applicableCategories || [],
+        applicableProducts: coupon.applicableProducts || [],
+      });
+      toast.success(`Coupon ${coupon.activeStatus ? 'disabled' : 'enabled'}`);
+      await fetchCoupons();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update coupon status');
     }
   };
 
@@ -423,6 +611,14 @@ const Admin = () => {
             >
               <CheckCircle2 size={16} className="inline mr-2" />
               Review Pending Orders
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setActiveTab('coupons')}
+            >
+              <Tag size={16} className="inline mr-2" />
+              Manage Coupons
             </button>
             <button
               type="button"
@@ -899,6 +1095,270 @@ const Admin = () => {
     </div>
   );
 
+  const renderCouponsTab = () => {
+    const filteredCouponProducts = products.filter((product) => {
+      if (!couponProductSearch.trim()) return true;
+      const normalized = couponProductSearch.trim().toLowerCase();
+      return product.name.toLowerCase().includes(normalized) || product.category.toLowerCase().includes(normalized);
+    });
+
+    return (
+      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
+        <div className="dashboard-panel">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="panel-title">Coupon Manager</h2>
+              <p className="panel-subtitle">Create, edit and control promotional coupons.</p>
+            </div>
+            <button type="button" className="btn-secondary" onClick={resetCouponForm}>
+              Reset
+            </button>
+          </div>
+
+          <form onSubmit={handleCouponSubmit} className="space-y-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Coupon Code</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={couponForm.code}
+                  onChange={(e) => updateCouponField('code', e.target.value.toUpperCase())}
+                  placeholder="RIA50"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Discount Type</label>
+                <select
+                  className="input-field"
+                  value={couponForm.discountType}
+                  onChange={(e) => updateCouponField('discountType', e.target.value)}
+                >
+                  <option value="percentage">Percentage</option>
+                  <option value="fixed">Fixed Amount</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Discount Value</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  value={couponForm.discountValue}
+                  onChange={(e) => updateCouponField('discountValue', e.target.value)}
+                  placeholder="20"
+                  min="0"
+                  step="0.01"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Minimum Order Amount</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  value={couponForm.minOrderAmount}
+                  onChange={(e) => updateCouponField('minOrderAmount', e.target.value)}
+                  placeholder="499"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Maximum Discount Cap</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  value={couponForm.maxDiscount}
+                  onChange={(e) => updateCouponField('maxDiscount', e.target.value)}
+                  placeholder="200"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Date</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={couponForm.expiryDate}
+                  onChange={(e) => updateCouponField('expiryDate', e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Usage Limit</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  value={couponForm.usageLimit}
+                  onChange={(e) => updateCouponField('usageLimit', e.target.value)}
+                  placeholder="500"
+                  min="1"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={couponForm.activeStatus}
+                    onChange={(e) => updateCouponField('activeStatus', e.target.checked)}
+                  />
+                  Active
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={couponForm.freeDelivery}
+                    onChange={(e) => updateCouponField('freeDelivery', e.target.checked)}
+                  />
+                  Free delivery
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={couponForm.firstOrderOnly}
+                    onChange={(e) => updateCouponField('firstOrderOnly', e.target.checked)}
+                  />
+                  First order only
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={couponForm.oneTimePerUser}
+                    onChange={(e) => updateCouponField('oneTimePerUser', e.target.checked)}
+                  />
+                  One use per user
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Applicable Categories</label>
+              <div className="flex flex-wrap gap-2">
+                {siteInfo.catalogCategories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => toggleCouponCategory(category)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold border transition ${
+                      couponForm.applicableCategories.includes(category)
+                        ? 'bg-rose-400 text-white border-rose-400'
+                        : 'bg-white text-slate-700 border-rose-100 hover:bg-rose-50'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-slate-700">Applicable Products</label>
+                <input
+                  type="text"
+                  className="input-field !w-48"
+                  value={couponProductSearch}
+                  onChange={(e) => setCouponProductSearch(e.target.value)}
+                  placeholder="Search products"
+                />
+              </div>
+              <div className="max-h-56 overflow-y-auto rounded-2xl border border-rose-100 bg-rose-50 p-3 space-y-2">
+                {filteredCouponProducts.length === 0 ? (
+                  <p className="text-sm text-slate-600">No products match the search.</p>
+                ) : (
+                  filteredCouponProducts.map((product) => (
+                    <label key={product._id} className="flex items-center justify-between gap-3 rounded-xl bg-white border border-rose-100 px-3 py-2 text-sm text-slate-700">
+                      <span className="min-w-0">
+                        <span className="font-semibold block truncate">{product.name}</span>
+                        <span className="text-xs text-slate-500">{product.category}</span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={couponForm.applicableProducts.includes(product._id)}
+                        onChange={() => toggleCouponProduct(product._id)}
+                      />
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" className="btn-primary" disabled={couponSaving}>
+                {couponSaving ? 'Saving...' : editingCouponId ? 'Update Coupon' : 'Create Coupon'}
+              </button>
+              <button type="button" className="btn-secondary" onClick={resetCouponForm}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="dashboard-panel">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="panel-title">Coupon Library</h2>
+              <p className="panel-subtitle">Monitor coupon status and usage at a glance.</p>
+            </div>
+            <button type="button" className="btn-secondary" onClick={fetchCoupons}>
+              Refresh
+            </button>
+          </div>
+
+          <div className="space-y-3 mt-4 max-h-[80vh] overflow-y-auto pr-1">
+            {couponLoading && <p className="text-sm text-slate-600">Loading coupons...</p>}
+            {!couponLoading && coupons.length === 0 && <p className="text-sm text-slate-600">No coupons created yet.</p>}
+
+            {coupons.map((coupon) => (
+              <div key={coupon._id} className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-500">Code</p>
+                    <p className="text-lg font-black text-slate-800">{coupon.code}</p>
+                    <p className="text-sm text-slate-600 mt-1">{coupon.discountLabel}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${coupon.activeStatus ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
+                    {coupon.activeStatus ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 mt-3">
+                  <p>Min order: {toCurrency(coupon.minOrderAmount || 0)}</p>
+                  <p>Expiry: {coupon.expiryLabel || 'Not set'}</p>
+                  <p>Used: {coupon.usedCount || 0}</p>
+                  <p>Remaining: {coupon.remainingUses === null ? 'Unlimited' : coupon.remainingUses}</p>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" className="btn-secondary !py-2 !px-3 text-xs" onClick={() => startEditCoupon(coupon)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn-secondary !py-2 !px-3 text-xs" onClick={() => toggleCouponStatus(coupon)}>
+                    {coupon.activeStatus ? 'Disable' : 'Enable'}
+                  </button>
+                  <button type="button" className="text-xs font-semibold px-3 py-2 rounded-xl bg-rose-100 text-rose-700 hover:bg-rose-200" onClick={() => deleteCoupon(coupon._id)}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderInsightsTab = () => {
     const maxCategoryCount = Math.max(...(insights.categoryBreakdown || []).map((entry) => entry.count), 1);
 
@@ -1079,6 +1539,7 @@ const Admin = () => {
       {activeTab === 'overview' && renderOverviewTab()}
       {activeTab === 'products' && renderProductsTab()}
       {activeTab === 'orders' && renderOrdersTab()}
+      {activeTab === 'coupons' && renderCouponsTab()}
       {activeTab === 'insights' && renderInsightsTab()}
       {activeTab === 'settings' && renderSettingsTab()}
     </div>

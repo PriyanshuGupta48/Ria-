@@ -202,11 +202,23 @@ const OrderDetail = () => {
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-slate-600">Subtotal</span>
-                <span className="font-semibold text-slate-800">{formatCurrency(order.subtotalAmount || order.totalAmount)}</span>
+                <span className="font-semibold text-slate-800">{formatCurrency(order.originalAmount || order.subtotalAmount || order.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-600">Discount</span>
+                <span className="font-semibold text-emerald-700">-{formatCurrency(order.discountAmount || 0)}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-slate-600">Delivery charge</span>
                 <span className="font-semibold text-slate-800">{formatCurrency(order.deliveryCharge || 0)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-600">Coupon Used</span>
+                <span className="font-semibold text-slate-800">{order.couponCode || 'None'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-600">Final Paid Amount</span>
+                <span className="font-semibold text-slate-800">{formatCurrency(order.finalPaidAmount || order.totalAmount || 0)}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-slate-600">Payment method</span>

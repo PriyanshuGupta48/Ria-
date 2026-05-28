@@ -10,6 +10,7 @@ const productRoutes = require('./routes/products');
 const cartRoutes = require('./routes/cart');
 const reviewRoutes = require('./routes/reviews');
 const orderRoutes = require('./routes/orders');
+const couponRoutes = require('./routes/coupons');
 const User = require('./models/User');
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api', couponRoutes);
 
 // MongoDB connection
 const seedAdminUser = async () => {

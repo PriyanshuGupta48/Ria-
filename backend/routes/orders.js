@@ -2,9 +2,15 @@ const express = require('express');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const Order = require('../models/Order');
+const Coupon = require('../models/Coupon');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const {
+  calculateCouponPricing,
+  normalizeCouponCode,
+  summarizeCoupon,
+} = require('../utils/couponPricing');
 
 const router = express.Router();
 const otpStore = new Map();
@@ -267,6 +273,81 @@ const validateAddress = (address) => {
   }
 
   return '';
+};
+
+const buildCheckoutPricing = async ({
+  userId,
+  address = null,
+  customerName = '',
+  contactNumber = '',
+  couponCode = '',
+}) => {
+  const cartResult = await getCartWithValidation(userId);
+  if (cartResult.error) {
+    return { error: cartResult.error, status: 400 };
+  }
+
+  const normalizedCouponCode = normalizeCouponCode(couponCode);
+  let coupon = null;
+  let couponPricing = {
+    eligible: true,
+    reason: '',
+    discountAmount: 0,
+    freeDelivery: false,
+    eligibleSubtotal: cartResult.subtotalAmount,
+  };
+
+  if (normalizedCouponCode) {
+    coupon = await Coupon.findOne({ code: normalizedCouponCode });
+    if (!coupon) {
+      return { error: 'Invalid coupon', status: 400 };
+    }
+
+    const [userOrderCount, hasUsedCouponBefore] = await Promise.all([
+      Order.countDocuments({ user: userId }),
+      Order.exists({ user: userId, couponCode: coupon.code }),
+    ]);
+
+    couponPricing = calculateCouponPricing({
+      coupon,
+      cartItems: cartResult.cart.items,
+      subtotalAmount: cartResult.subtotalAmount,
+      userOrderCount,
+      hasUsedCouponBefore: Boolean(hasUsedCouponBefore),
+    });
+
+    if (!couponPricing.eligible) {
+      return { error: couponPricing.reason || 'Coupon is not applicable', status: 400 };
+    }
+  }
+
+  const discountAmount = Number(couponPricing.discountAmount || 0);
+  const discountedSubtotal = Math.max(0, Number(cartResult.subtotalAmount || 0) - discountAmount);
+  const hasAddress = Boolean(address && typeof address === 'object');
+  const quote = hasAddress
+    ? await getDeliveryQuote(address, discountedSubtotal, cartResult.packageMetrics, customerName, contactNumber)
+    : {
+        deliveryPartner: DELHIVERY_PARTNER_NAME,
+        deliveryCharge: 0,
+        payableAmount: discountedSubtotal,
+        quoteSource: 'coupon-preview',
+      };
+
+  const deliveryCharge = couponPricing.freeDelivery ? 0 : Number(quote.deliveryCharge || 0);
+  const finalAmount = Math.max(0, discountedSubtotal + deliveryCharge);
+
+  return {
+    cartResult,
+    coupon,
+    couponSummary: coupon ? summarizeCoupon(coupon) : null,
+    discountAmount,
+    discountedSubtotal,
+    deliveryCharge,
+    deliveryPartner: quote.deliveryPartner || DELHIVERY_PARTNER_NAME,
+    payableAmount: finalAmount,
+    quoteSource: couponPricing.freeDelivery ? 'coupon-free-delivery' : quote.quoteSource,
+    quote,
+  };
 };
 
 const buildFallbackDeliveryQuote = (subtotal) => {
@@ -1119,19 +1200,35 @@ router.post('/verify-otp', authMiddleware, async (req, res) => {
 
 router.post('/quote', authMiddleware, async (req, res) => {
   try {
-    const cartResult = await getCartWithValidation(req.user.userId);
-    if (cartResult.error) {
-      return res.status(400).json({ message: cartResult.error });
-    }
-
     const address = normalizeAddress(req.body.address || {});
     const addressError = validateAddress(address);
     if (addressError) {
       return res.status(400).json({ message: addressError });
     }
 
-    const quote = await getDeliveryQuote(address, cartResult.subtotalAmount, cartResult.packageMetrics);
-    return res.json(quote);
+    const pricing = await buildCheckoutPricing({
+      userId: req.user.userId,
+      address,
+      customerName: String(req.body.customerName || '').trim(),
+      contactNumber: String(req.body.contactNumber || '').trim(),
+      couponCode: req.body.couponCode,
+    });
+
+    if (pricing.error) {
+      return res.status(pricing.status || 400).json({ message: pricing.error });
+    }
+
+    return res.json({
+      subtotal: pricing.cartResult.subtotalAmount,
+      discountAmount: pricing.discountAmount,
+      deliveryCharge: pricing.deliveryCharge,
+      deliveryPartner: pricing.deliveryPartner,
+      payableAmount: pricing.payableAmount,
+      quoteSource: pricing.quoteSource,
+      estimatedDeliveryDays: pricing.quote?.estimatedDeliveryDays || null,
+      warning: pricing.quote?.warning,
+      coupon: pricing.couponSummary,
+    });
   } catch (error) {
     const message = String(error?.message || 'Failed to generate quote');
     const isConfigError = /DELHIVERY_ORIGIN_PINCODE|Delhivery One is not configured|registered pickup pincode/i.test(message);
@@ -1145,7 +1242,7 @@ router.post('/quote', authMiddleware, async (req, res) => {
 
 router.post('/payment/create-order', authMiddleware, async (req, res) => {
   try {
-    const { customerName, contactNumber, address, paymentMethod } = req.body;
+    const { customerName, contactNumber, address, paymentMethod, couponCode } = req.body;
     const cleanCustomerName = String(customerName || '').trim();
     const cleanContact = String(contactNumber || '').trim();
 
@@ -1168,14 +1265,19 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Please choose a valid payment gateway option' });
     }
 
-    const cartResult = await getCartWithValidation(req.user.userId);
-    if (cartResult.error) {
-      return res.status(400).json({ message: cartResult.error });
+    const pricing = await buildCheckoutPricing({
+      userId: req.user.userId,
+      address: shippingAddress,
+      customerName: cleanCustomerName,
+      contactNumber: cleanContact,
+      couponCode,
+    });
+
+    if (pricing.error) {
+      return res.status(pricing.status || 400).json({ message: pricing.error });
     }
 
-    const { subtotalAmount } = cartResult;
-    const quote = await getDeliveryQuote(shippingAddress, subtotalAmount, cartResult.packageMetrics, cleanCustomerName, cleanContact);
-    const payableAmount = Number(quote.payableAmount || 0);
+    const payableAmount = Number(pricing.payableAmount || 0);
     const amountInPaise = Math.round(payableAmount * 100);
 
     if (!Number.isFinite(amountInPaise) || amountInPaise <= 0) {
@@ -1194,6 +1296,7 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
         userId: String(req.user.userId),
         customerName: cleanCustomerName,
         contactNumber: cleanContact,
+        couponCode: pricing.couponSummary?.code || '',
       },
     });
 
@@ -1202,10 +1305,12 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
       keyId,
       razorpayOrder,
       amountBreakdown: {
-        subtotal: subtotalAmount,
-        deliveryCharge: quote.deliveryCharge,
+        subtotal: pricing.cartResult.subtotalAmount,
+        discountAmount: pricing.discountAmount,
+        deliveryCharge: pricing.deliveryCharge,
         payableAmount,
-        deliveryPartner: quote.deliveryPartner,
+        deliveryPartner: pricing.deliveryPartner,
+        coupon: pricing.couponSummary,
       },
     });
   } catch (error) {
@@ -1225,6 +1330,7 @@ router.post('/payment/verify', authMiddleware, async (req, res) => {
       contactNumber,
       address,
       paymentMethod,
+      couponCode,
       razorpay_order_id: razorpayOrderId,
       razorpay_payment_id: razorpayPaymentId,
       razorpay_signature: razorpaySignature,
@@ -1284,21 +1390,31 @@ router.post('/payment/verify', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Payment verification failed due to invalid signature' });
     }
 
-    const cartResult = await getCartWithValidation(req.user.userId);
-    if (cartResult.error) {
-      return res.status(400).json({ message: cartResult.error });
+    const pricing = await buildCheckoutPricing({
+      userId: req.user.userId,
+      address: shippingAddress,
+      customerName: cleanCustomerName,
+      contactNumber: cleanContact,
+      couponCode,
+    });
+
+    if (pricing.error) {
+      return res.status(pricing.status || 400).json({ message: pricing.error });
     }
 
-    const { cart, orderItems, subtotalAmount } = cartResult;
-    const quote = await getDeliveryQuote(shippingAddress, subtotalAmount, cartResult.packageMetrics, cleanCustomerName, cleanContact);
+    const { cart, orderItems, subtotalAmount } = pricing.cartResult;
 
     const order = await Order.create({
       user: req.user.userId,
       items: orderItems,
       subtotalAmount,
-      deliveryCharge: quote.deliveryCharge,
-      deliveryPartner: quote.deliveryPartner,
-      totalAmount: quote.payableAmount,
+      originalAmount: subtotalAmount,
+      discountAmount: pricing.discountAmount,
+      couponCode: pricing.couponSummary?.code || '',
+      finalPaidAmount: pricing.payableAmount,
+      deliveryCharge: pricing.deliveryCharge,
+      deliveryPartner: pricing.deliveryPartner,
+      totalAmount: pricing.payableAmount,
       status: 'pending',
       contactNumber: cleanContact,
       shippingAddress,
@@ -1310,6 +1426,11 @@ router.post('/payment/verify', authMiddleware, async (req, res) => {
         pendingAt: new Date(),
       },
     });
+
+    if (pricing.coupon) {
+      pricing.coupon.usedCount = Number(pricing.coupon.usedCount || 0) + 1;
+      await pricing.coupon.save();
+    }
 
     cart.items = [];
     cart.updatedAt = Date.now();
@@ -1335,7 +1456,7 @@ router.post('/payment/verify', authMiddleware, async (req, res) => {
 
 router.post('/place', authMiddleware, async (req, res) => {
   try {
-    const { customerName, contactNumber, address, paymentMethod } = req.body;
+    const { customerName, contactNumber, address, paymentMethod, couponCode } = req.body;
     const cleanCustomerName = String(customerName || '').trim();
     const cleanContact = String(contactNumber || '').trim();
 
@@ -1358,22 +1479,32 @@ router.post('/place', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Please choose a valid payment gateway option' });
     }
 
-    const cartResult = await getCartWithValidation(req.user.userId);
-    if (cartResult.error) {
-      return res.status(400).json({ message: cartResult.error });
+    const pricing = await buildCheckoutPricing({
+      userId: req.user.userId,
+      address: shippingAddress,
+      customerName: cleanCustomerName,
+      contactNumber: cleanContact,
+      couponCode,
+    });
+
+    if (pricing.error) {
+      return res.status(pricing.status || 400).json({ message: pricing.error });
     }
 
-    const { cart, orderItems, subtotalAmount } = cartResult;
-    const quote = await getDeliveryQuote(shippingAddress, subtotalAmount, cartResult.packageMetrics, cleanCustomerName, cleanContact);
+    const { cart, orderItems, subtotalAmount } = pricing.cartResult;
     const paymentReference = `PAY-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
     const order = await Order.create({
       user: req.user.userId,
       items: orderItems,
       subtotalAmount,
-      deliveryCharge: quote.deliveryCharge,
-      deliveryPartner: quote.deliveryPartner,
-      totalAmount: quote.payableAmount,
+      originalAmount: subtotalAmount,
+      discountAmount: pricing.discountAmount,
+      couponCode: pricing.couponSummary?.code || '',
+      finalPaidAmount: pricing.payableAmount,
+      deliveryCharge: pricing.deliveryCharge,
+      deliveryPartner: pricing.deliveryPartner,
+      totalAmount: pricing.payableAmount,
       status: 'pending',
       contactNumber: cleanContact,
       shippingAddress,
@@ -1385,6 +1516,11 @@ router.post('/place', authMiddleware, async (req, res) => {
         pendingAt: new Date(),
       },
     });
+
+    if (pricing.coupon) {
+      pricing.coupon.usedCount = Number(pricing.coupon.usedCount || 0) + 1;
+      await pricing.coupon.save();
+    }
 
     cart.items = [];
     cart.updatedAt = Date.now();
