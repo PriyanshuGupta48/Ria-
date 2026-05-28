@@ -85,6 +85,17 @@ const EMPTY_COUPON_FORM = {
   applicableProducts: [],
 };
 
+const getCouponAuthConfig = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return {};
+
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
+
 const toDateInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
@@ -203,10 +214,13 @@ const Admin = () => {
   const fetchCoupons = async () => {
     setCouponLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/api/admin/coupons`);
+      const response = await axios.get(`${API_BASE}/api/admin/coupons`, getCouponAuthConfig());
       setCoupons(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      toast.error('Failed to load coupons');
+      if (error.response?.status !== 404) {
+        toast.error(error.response?.data?.message || 'Failed to load coupons');
+      }
+      setCoupons([]);
     } finally {
       setCouponLoading(false);
     }
@@ -307,10 +321,10 @@ const Admin = () => {
       }
 
       if (editingCouponId) {
-        await axios.put(`${API_BASE}/api/admin/update-coupon/${editingCouponId}`, payload);
+        await axios.put(`${API_BASE}/api/admin/update-coupon/${editingCouponId}`, payload, getCouponAuthConfig());
         toast.success('Coupon updated successfully');
       } else {
-        await axios.post(`${API_BASE}/api/admin/create-coupon`, payload);
+        await axios.post(`${API_BASE}/api/admin/create-coupon`, payload, getCouponAuthConfig());
         toast.success('Coupon created successfully');
       }
 
@@ -329,7 +343,7 @@ const Admin = () => {
     }
 
     try {
-      await axios.delete(`${API_BASE}/api/admin/delete-coupon/${couponId}`);
+      await axios.delete(`${API_BASE}/api/admin/delete-coupon/${couponId}`, getCouponAuthConfig());
       toast.success('Coupon deleted');
       if (editingCouponId === couponId) {
         resetCouponForm();
@@ -356,7 +370,7 @@ const Admin = () => {
         freeDelivery: coupon.freeDelivery,
         applicableCategories: coupon.applicableCategories || [],
         applicableProducts: coupon.applicableProducts || [],
-      });
+      }, getCouponAuthConfig());
       toast.success(`Coupon ${coupon.activeStatus ? 'disabled' : 'enabled'}`);
       await fetchCoupons();
     } catch (error) {
