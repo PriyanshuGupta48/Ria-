@@ -1,6 +1,4 @@
-# Logistics Integration (Delhivery One)
 
-This project now supports real-time delivery quotation via Delhivery One during checkout.
 
 ## Razorpay Payment Integration
 
