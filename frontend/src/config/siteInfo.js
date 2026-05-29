@@ -1,6 +1,7 @@
 export const siteInfo = {
   brandName: 'Dhaaga',
   logoText: 'Dhaaga',
+  deliveryBannerText: 'Free Delivery above ₹999',
   address: '252, Village Daudwala P.O. Mothrowala, Dehradun, 248001',
   phoneDisplay: '7302068608, +91 9870634648',
   phoneDigits: '+917302068608',

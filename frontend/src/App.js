@@ -17,6 +17,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import SiteFooter from './components/SiteFooter';
 import WhatsAppFloat from './components/WhatsAppFloat';
+import { siteInfo } from './config/siteInfo';
 
 const ScrollToTop = () => {
   const location = useLocation();
@@ -48,6 +49,15 @@ const AppShell = () => {
 
   return (
     <div className="min-h-screen app-background">
+      {showPublicExtras && (
+        <div className="site-announcement">
+          <div className="container mx-auto px-4 sm:px-6 py-2 flex items-center justify-center">
+            <span className="site-announcement-pill site-announcement-moving" aria-label={siteInfo.deliveryBannerText}>
+              {siteInfo.deliveryBannerText}
+            </span>
+          </div>
+        </div>
+      )}
       {!isAdminRoute && <GuestNavbar />}
       <main className="pb-44 sm:pb-48 lg:pb-40">
         <Routes>
