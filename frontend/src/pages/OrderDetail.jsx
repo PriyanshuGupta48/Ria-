@@ -221,6 +221,10 @@ const OrderDetail = () => {
                 <span className="font-semibold text-slate-800">{formatCurrency(order.finalPaidAmount || order.totalAmount || 0)}</span>
               </div>
               <div className="flex justify-between gap-4">
+                <span className="text-slate-600">Delivery</span>
+                <span className="font-semibold text-slate-800">{order.deliveryCharge > 0 ? formatCurrency(order.deliveryCharge) : 'FREE 🎉'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
                 <span className="text-slate-600">Payment method</span>
                 <span className="font-semibold text-slate-800">{order.paymentMethod || 'Not set'}</span>
               </div>
@@ -234,31 +238,23 @@ const OrderDetail = () => {
           <div className="dashboard-panel">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Shipping Address</h2>
             <div className="space-y-2 text-sm text-slate-700">
-              <p>{order.shippingAddress?.houseNo || '-'}, {order.shippingAddress?.laneNo || '-'}</p>
-              <p>{order.shippingAddress?.landmark || '-'}</p>
-              <p>{order.shippingAddress?.city || '-'} - {order.shippingAddress?.pinCode || '-'}</p>
-              <p>{order.shippingAddress?.state || '-'}, {order.shippingAddress?.country || '-'}</p>
-              <p>Contact: {order.contactNumber || '-'}</p>
+              <p>{order.customerAddress?.fullName || order.customerName || '-'}</p>
+              <p>{order.customerAddress?.phoneNumber || order.contactNumber || '-'}</p>
+              <p>{order.customerAddress?.email || order.user?.email || '-'}</p>
+              <p>{order.customerAddress?.houseNo || order.shippingAddress?.houseNo || '-'}</p>
+              <p>{order.customerAddress?.street || order.customerAddress?.laneNo || order.shippingAddress?.laneNo || '-'}</p>
+              <p>{order.customerAddress?.landmark || order.shippingAddress?.landmark || '-'}</p>
+              <p>{order.customerAddress?.city || order.shippingAddress?.city || '-'} - {order.customerAddress?.pinCode || order.shippingAddress?.pinCode || '-'}</p>
+              <p>{order.customerAddress?.state || order.shippingAddress?.state || '-'}, {order.customerAddress?.country || order.shippingAddress?.country || '-'}</p>
             </div>
           </div>
 
           <div className="dashboard-panel">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Delivery Info</h2>
             <div className="space-y-2 text-sm text-slate-700">
-              <p>Partner: {order.deliveryPartner || 'Assigned by admin'}</p>
-              <p>AWB: {order.awbNumber || 'Pending sync'}</p>
+              <p>Partner: {order.deliveryPartner || 'Fixed Shipping'}</p>
               <p>Expected dispatch: {order.expectedShippingDate ? new Date(order.expectedShippingDate).toLocaleDateString() : 'Not set yet'}</p>
-              <p>Expected delivery: {order.courierExpectedDeliveryDate ? new Date(order.courierExpectedDeliveryDate).toLocaleDateString() : 'Not set yet'}</p>
-              <p>
-                Tracking:{' '}
-                {order.trackingLink ? (
-                  <a href={order.trackingLink} target="_blank" rel="noreferrer" className="font-semibold text-sky-700 hover:text-sky-800">
-                    Open tracking link
-                  </a>
-                ) : (
-                  <span className="font-semibold text-slate-800">Pending sync</span>
-                )}
-              </p>
+              <p>Delivery charge: {order.deliveryCharge > 0 ? formatCurrency(order.deliveryCharge) : 'FREE 🎉'}</p>
             </div>
           </div>
 

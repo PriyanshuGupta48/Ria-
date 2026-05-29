@@ -1,6 +1,69 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const savedAddressSchema = new mongoose.Schema({
+  fullName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  phoneNumber: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  email: {
+    type: String,
+    default: '',
+    trim: true,
+    lowercase: true,
+  },
+  houseNo: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  street: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  landmark: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  city: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  state: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  pinCode: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  country: {
+    type: String,
+    default: 'India',
+    trim: true,
+  },
+  label: {
+    type: String,
+    default: 'Home',
+    trim: true,
+  },
+  isDefault: {
+    type: Boolean,
+    default: false,
+  },
+}, { _id: true, timestamps: true });
+
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -23,6 +86,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
     sparse: true
+  },
+  addresses: {
+    type: [savedAddressSchema],
+    default: [],
   },
   role: {
     type: String,

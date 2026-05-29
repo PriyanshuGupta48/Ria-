@@ -11,6 +11,7 @@ const cartRoutes = require('./routes/cart');
 const reviewRoutes = require('./routes/reviews');
 const orderRoutes = require('./routes/orders');
 const couponRoutes = require('./routes/coupons');
+const addressRoutes = require('./routes/addresses');
 const User = require('./models/User');
 
 const app = express();
@@ -73,6 +74,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api', couponRoutes);
+app.use('/api/addresses', addressRoutes);
 
 // MongoDB connection
 const seedAdminUser = async () => {

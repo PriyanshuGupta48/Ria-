@@ -218,43 +218,15 @@ const Orders = () => {
                   <p className="text-slate-600">
                     Dispatch Date: <span className="font-semibold text-slate-800">{formatDateOnly(order.expectedShippingDate)}</span>
                   </p>
-                  {TRACKING_STEPS.indexOf(order.status) < TRACKING_STEPS.indexOf('shipped') ? (
-                    <p className="text-slate-600 sm:col-span-2">
-                      Delivery will be handled by courier partner after shipment.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-slate-600">
-                        Expected Delivery: <span className="font-semibold text-slate-800">{formatDateOnly(order.courierExpectedDeliveryDate)}</span>
-                      </p>
-                      <p className="text-slate-600">
-                        AWB: <span className="font-semibold text-slate-800">{order.awbNumber || 'Pending sync'}</span>
-                      </p>
-                      <p className="text-slate-600 sm:col-span-2">
-                        Tracking:{' '}
-                        {order.trackingLink ? (
-                          <a
-                            href={order.trackingLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-semibold text-sky-700 hover:text-sky-800"
-                          >
-                            Open tracking link
-                          </a>
-                        ) : (
-                          <span className="font-semibold text-slate-800">Pending sync</span>
-                        )}
-                      </p>
-                    </>
-                  )}
+                    <p className="text-slate-600 sm:col-span-2">Delivery: <span className="font-semibold text-slate-800">{order.deliveryCharge > 0 ? `₹${Number(order.deliveryCharge || 0).toFixed(2)}` : 'FREE 🎉'}</span></p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mt-2">
                   <p className="text-slate-600">
-                    Delivery Partner: <span className="font-semibold text-slate-800">{order.deliveryPartner || 'Assigned by admin'}</span>
+                      Delivery Partner: <span className="font-semibold text-slate-800">{order.deliveryPartner || 'Fixed Shipping'}</span>
                   </p>
-                  <p className="text-slate-600">
-                    Delivery Charge: <span className="font-semibold text-slate-800">{formatCurrency(order.deliveryCharge || 0)}</span>
-                  </p>
+                    <p className="text-slate-600">
+                      Delivery Charge: <span className="font-semibold text-slate-800">{order.deliveryCharge > 0 ? formatCurrency(order.deliveryCharge || 0) : 'FREE 🎉'}</span>
+                    </p>
                 </div>
               </div>
 

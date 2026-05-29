@@ -21,6 +21,63 @@ const orderItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const customerAddressSchema = new mongoose.Schema(
+  {
+    fullName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    phoneNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    email: {
+      type: String,
+      default: '',
+      trim: true,
+      lowercase: true,
+    },
+    houseNo: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    street: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    landmark: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    city: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    state: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    pinCode: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    country: {
+      type: String,
+      default: 'India',
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     user: {
@@ -32,9 +89,18 @@ const orderSchema = new mongoose.Schema(
       type: [orderItemSchema],
       default: [],
     },
+    orderItems: {
+      type: [orderItemSchema],
+      default: [],
+    },
     totalAmount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    finalAmount: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     originalAmount: {
@@ -87,6 +153,10 @@ const orderSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    customerAddress: {
+      type: customerAddressSchema,
+      default: () => ({}),
+    },
     shippingAddress: {
       houseNo: { type: String, default: '', trim: true },
       laneNo: { type: String, default: '', trim: true },
@@ -117,20 +187,6 @@ const orderSchema = new mongoose.Schema(
       trim: true,
     },
     expectedShippingDate: {
-      type: Date,
-      default: null,
-    },
-    awbNumber: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    trackingLink: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    courierExpectedDeliveryDate: {
       type: Date,
       default: null,
     },
