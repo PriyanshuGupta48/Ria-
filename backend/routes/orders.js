@@ -684,8 +684,11 @@ const buildDelhiveryShipmentPayload = (order) => {
     shipment_length: packageMetrics.lengthCm,
     shipment_breadth: packageMetrics.breadthCm,
     shipment_height: packageMetrics.heightCm,
-    shipment_weight: packageMetrics.chargeableWeightGrams,
-    weight: packageMetrics.chargeableWeightGrams,
+    // Provide both grams and kilograms to be safe — Delhivery APIs may expect kg for some endpoints
+    shipment_weight_g: packageMetrics.chargeableWeightGrams,
+    shipment_weight: Math.max(0.001, Math.round(packageMetrics.chargeableWeightGrams) / 1000),
+    weight_g: packageMetrics.chargeableWeightGrams,
+    weight: Math.max(0.001, Math.round(packageMetrics.chargeableWeightGrams) / 1000),
     waybill: String(order?.awbNumber || '').trim(),
     return_name: pickup.name,
     return_phone: pickup.phone,
@@ -744,6 +747,12 @@ const createDelhiveryShipment = async (order) => {
   } else {
     requestBody = params.toString();
     headers['Content-Type'] = 'application/x-www-form-urlencoded';
+  }
+
+  try {
+    console.log('[DELHIVERY SHIPMENT] Request:', { url: requestUrl, method: requestMethod, payloadSample: payload, bodyLength: requestBody ? requestBody.length : 0 });
+  } catch (e) {
+    // ignore logging failures
   }
 
   const response = await fetch(requestUrl, {
@@ -807,9 +816,13 @@ const createDelhiveryShipment = async (order) => {
 const buildDelhiveryPayload = ({ address, packageMetrics, customerName, contactNumber }) => {
   const originPinCode = String(process.env.DELHIVERY_ORIGIN_PINCODE || '').trim();
   const parsedChargeableWeightGrams = Number(packageMetrics?.chargeableWeightGrams);
+  const envDefaultWeightKg = Number(process.env.DELHIVERY_DEFAULT_WEIGHT_KG || 0);
+  const defaultWeightGrams = envDefaultWeightKg > 0 ? Math.round(envDefaultWeightKg * 1000) : DEFAULT_PRODUCT_WEIGHT_GRAMS;
   const finalChargeableWeightGrams = Number.isFinite(parsedChargeableWeightGrams) && parsedChargeableWeightGrams > 0
     ? Math.round(parsedChargeableWeightGrams)
-    : DEFAULT_PRODUCT_WEIGHT_GRAMS;
+    : defaultWeightGrams;
+  // Delhivery's quote API expects weight in kilograms; convert grams -> kg
+  const finalChargeableWeightKg = Math.max(0.001, Math.round((finalChargeableWeightGrams / 1000) * 1000) / 1000);
   const finalLengthCm = resolveProductDimensionCm(packageMetrics?.lengthCm, DEFAULT_LENGTH_CM);
   const finalBreadthCm = resolveProductDimensionCm(packageMetrics?.breadthCm, DEFAULT_BREADTH_CM);
   const finalHeightCm = resolveProductDimensionCm(packageMetrics?.heightCm, DEFAULT_HEIGHT_CM);
@@ -820,7 +833,8 @@ const buildDelhiveryPayload = ({ address, packageMetrics, customerName, contactN
     ss: 'Delivered',
     d_pin: address.pinCode,
     o_pin: originPinCode,
-    cgm: finalChargeableWeightGrams,
+    // cgm: chargeable gross mass (use kilograms)
+    cgm: finalChargeableWeightKg,
     pt: 'Pre-paid',
     payment_mode: 'Wallet',
     l: finalLengthCm,
@@ -843,6 +857,22 @@ const buildDelhiveryPayload = ({ address, packageMetrics, customerName, contactN
 
   if (contactNumber) {
     payload.customer_phone = String(contactNumber).trim();
+  }
+
+  // Debug: print computed weight metrics and payload params for troubleshooting
+  try {
+    console.log('[DELHIVERY DEBUG] packageMetrics:', { parsedChargeableWeightGrams, finalChargeableWeightGrams, finalChargeableWeightKg, finalLengthCm, finalBreadthCm, finalHeightCm });
+    console.log('[DELHIVERY DEBUG] payload sample:', {
+      cgm: payload.cgm,
+      d_pin: payload.d_pin,
+      o_pin: payload.o_pin,
+      length: payload.length,
+      breadth: payload.breadth,
+      height: payload.height,
+      ipkg_type: payload.ipkg_type,
+    });
+  } catch (e) {
+    // ignore logging errors
   }
 
   return payload;
