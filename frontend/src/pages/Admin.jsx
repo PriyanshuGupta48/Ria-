@@ -138,10 +138,7 @@ const Admin = () => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    weight: '',
-    length: '',
-    breadth: '',
-    height: '',
+    // weight and package dimensions removed
     category: 'Gifts',
     description: '',
     details: EMPTY_DETAILS,
@@ -391,20 +388,7 @@ const Admin = () => {
     const isEditing = Boolean(selectedProduct);
     const currentGallery = getProductImages(selectedProduct);
     const remainingExistingImages = currentGallery.filter((img) => !removedImages.includes(img));
-    const parsedWeight = Number(formData.weight);
-    const parsedLength = Number(formData.length);
-    const parsedBreadth = Number(formData.breadth);
-    const parsedHeight = Number(formData.height);
-
-    if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) {
-      toast.error('Weight must be greater than 0 grams');
-      return;
-    }
-
-    if (!Number.isFinite(parsedLength) || parsedLength <= 0 || !Number.isFinite(parsedBreadth) || parsedBreadth <= 0 || !Number.isFinite(parsedHeight) || parsedHeight <= 0) {
-      toast.error('Length, breadth and height must be greater than 0 cm');
-      return;
-    }
+    // no weight/dimension validation required after removal
 
     if (!isEditing && images.length === 0) {
       toast.error('Please select at least one image');
@@ -415,10 +399,7 @@ const Admin = () => {
     const formDataToSend = new FormData();
     formDataToSend.append('name', formData.name);
     formDataToSend.append('price', formData.price);
-    formDataToSend.append('weight', String(Math.round(parsedWeight)));
-    formDataToSend.append('length', String(Math.round(parsedLength)));
-    formDataToSend.append('breadth', String(Math.round(parsedBreadth)));
-    formDataToSend.append('height', String(Math.round(parsedHeight)));
+    // removed weight/dimension fields
     formDataToSend.append('category', formData.category);
     formDataToSend.append('description', formData.description);
     formDataToSend.append('details', JSON.stringify(formData.details));
@@ -481,10 +462,7 @@ const Admin = () => {
     setFormData({
       name: product.name,
       price: product.price,
-      weight: product.weight || '',
-      length: product.length || '',
-      breadth: product.breadth || '',
-      height: product.height || '',
+      // removed weight/dimension fields
       category: product.category,
       description: product.description || '',
       details: {
@@ -499,7 +477,7 @@ const Admin = () => {
 
   const resetProductForm = () => {
     setSelectedProduct(null);
-    setFormData({ name: '', price: '', weight: '', length: '', breadth: '', height: '', category: 'Gifts', description: '', details: EMPTY_DETAILS });
+    setFormData({ name: '', price: '', category: 'Gifts', description: '', details: EMPTY_DETAILS });
     setImages([]);
     setRemovedImages([]);
   };
@@ -735,57 +713,11 @@ const Admin = () => {
                 onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Weight (grams)</label>
-              <input
-                type="number"
-                name="weight"
-                min="1"
-                required
-                className="input-field"
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
-              />
-            </div>
+            {/* weight removed */}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Length (cm)</label>
-              <input
-                type="number"
-                name="length"
-                min="1"
-                required
-                className="input-field"
-                value={formData.length}
-                onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Breadth (cm)</label>
-              <input
-                type="number"
-                name="breadth"
-                min="1"
-                required
-                className="input-field"
-                value={formData.breadth}
-                onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Height (cm)</label>
-              <input
-                type="number"
-                name="height"
-                min="1"
-                required
-                className="input-field"
-                value={formData.height}
-                onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
-              />
-            </div>
+            {/* package dimensions removed */}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

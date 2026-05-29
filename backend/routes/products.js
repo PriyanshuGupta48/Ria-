@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
     if (category && category !== 'All') {
       query.category = category;
     }
-    const products = await Product.find(query).select('-weight -length -breadth -height').sort({ createdAt: -1 });
+    const products = await Product.find(query).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
 // Get single product
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).select('-weight -length -breadth -height');
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
@@ -126,41 +126,14 @@ const normalizeDetails = (details = {}) => ({
   origin: details.origin || '',
 });
 
-const parseWeightInGrams = (rawValue) => {
-  const parsed = Number(rawValue);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return Math.round(parsed);
-};
-
-const parseDimensionInCm = (rawValue) => {
-  const parsed = Number(rawValue);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return Math.round(parsed);
-};
+// parse helpers for weight/dimensions removed
 
 // Add new product (admin only)
 router.post('/', authMiddleware, adminMiddleware, upload.array('images', 10), async (req, res) => {
   try {
-    const { name, price, category, description, weight, length, breadth, height } = req.body;
+    const { name, price, category, description } = req.body;
     const details = normalizeDetails(parseProductDetails(req.body.details));
-    const parsedWeight = parseWeightInGrams(weight);
-    const parsedLength = parseDimensionInCm(length);
-    const parsedBreadth = parseDimensionInCm(breadth);
-    const parsedHeight = parseDimensionInCm(height);
-
-    if (parsedWeight === null) {
-      return res.status(400).json({ message: 'Product weight (grams) is required and must be greater than 0' });
-    }
-
-    if (parsedLength === null || parsedBreadth === null || parsedHeight === null) {
-      return res.status(400).json({ message: 'Package dimensions (length, breadth, height in cm) are required and must be greater than 0' });
-    }
+    // weight/dimensions removed - no validation required for fixed shipping model
     
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'At least one image is required' });
@@ -172,10 +145,6 @@ router.post('/', authMiddleware, adminMiddleware, upload.array('images', 10), as
       name,
       price: parseFloat(price),
       category,
-      weight: parsedWeight,
-      length: parsedLength,
-      breadth: parsedBreadth,
-      height: parsedHeight,
       description: description || '',
       details,
       image: images[0],
@@ -206,22 +175,11 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 // Update product (admin only)
 router.put('/:id', authMiddleware, adminMiddleware, upload.array('images', 10), async (req, res) => {
   try {
-    const { name, price, category, description, weight, length, breadth, height } = req.body;
+    const { name, price, category, description } = req.body;
     const hasDetailsPayload = req.body.details !== undefined;
     const details = hasDetailsPayload ? normalizeDetails(parseProductDetails(req.body.details)) : null;
     const product = await Product.findById(req.params.id);
-    const parsedWeight = parseWeightInGrams(weight);
-    const parsedLength = parseDimensionInCm(length);
-    const parsedBreadth = parseDimensionInCm(breadth);
-    const parsedHeight = parseDimensionInCm(height);
-
-    if (parsedWeight === null) {
-      return res.status(400).json({ message: 'Product weight (grams) is required and must be greater than 0' });
-    }
-
-    if (parsedLength === null || parsedBreadth === null || parsedHeight === null) {
-      return res.status(400).json({ message: 'Package dimensions (length, breadth, height in cm) are required and must be greater than 0' });
-    }
+    // weight/dimensions removed - skip parsing/validation
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
@@ -230,10 +188,7 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.array('images', 10), 
     product.name = name ?? product.name;
     product.price = price !== undefined ? parseFloat(price) : product.price;
     product.category = category ?? product.category;
-    product.weight = parsedWeight;
-    product.length = parsedLength;
-    product.breadth = parsedBreadth;
-    product.height = parsedHeight;
+    // no-op for removed weight/dim fields
     product.description = description ?? product.description;
     if (hasDetailsPayload) {
       product.details = details;

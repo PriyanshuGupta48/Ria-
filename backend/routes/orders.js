@@ -1032,7 +1032,7 @@ router.put('/admin/:orderId/status', authMiddleware, adminMiddleware, async (req
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const order = await Order.findById(req.params.orderId).populate('items.product', 'name weight length breadth height');
+    const order = await Order.findById(req.params.orderId).populate('items.product', 'name image images category price');
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });

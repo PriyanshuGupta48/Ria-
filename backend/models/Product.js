@@ -16,30 +16,7 @@ const productSchema = new mongoose.Schema({
     required: true,
     enum: ['Gifts', 'Keychains', 'Decorations', 'Accessories', 'Apparel']
   },
-  weight: {
-    type: Number,
-    required: true,
-    min: 1,
-    default: 500
-  },
-  length: {
-    type: Number,
-    required: true,
-    min: 1,
-    default: 10
-  },
-  breadth: {
-    type: Number,
-    required: true,
-    min: 1,
-    default: 10
-  },
-  height: {
-    type: Number,
-    required: true,
-    min: 1,
-    default: 10
-  },
+  // weight and package dimensions removed (fixed shipping model)
   image: {
     type: String,
     required: true
