@@ -156,9 +156,9 @@ const Home = () => {
       <section className="hero-panel mb-8 sm:mb-10">
         <div className="hero-copy">
           <span className="hero-pill">Handmade. Heartfelt. Home-ready.</span>
-          <h1 className="hero-title">Crochet Pieces That Feel Personal</h1>
+          <h1 className="hero-title">Beautiful Handmade Creations For Every Special Moment</h1>
           <p className="hero-text">
-            Discover thoughtfully crafted crochet gifts and decor for everyday joy, gifting moments, and cozy spaces.
+            From heartfelt gifts to cozy decor, explore handmade crochet and pipe cleaner creations crafted with love and care.
           </p>
           <div className="mt-4 sm:mt-6 flex flex-wrap gap-2 sm:gap-3" id="collections">
             <a href="#product-catalog" className="btn-primary inline-flex items-center justify-center gap-2 text-sm sm:text-base">
