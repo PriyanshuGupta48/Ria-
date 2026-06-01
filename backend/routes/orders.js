@@ -320,6 +320,36 @@ const getCartWithValidation = async (userId) => {
   };
 };
 
+const incrementProductSalesForOrder = async (order) => {
+  if (!order || !Array.isArray(order.items) || order.items.length === 0) {
+    return;
+  }
+
+  const productQuantities = new Map();
+
+  order.items.forEach((item) => {
+    const productId = String(item?.product?._id || item?.product || '');
+    const quantity = Number(item?.quantity || 0);
+
+    if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
+      return;
+    }
+
+    productQuantities.set(productId, (productQuantities.get(productId) || 0) + quantity);
+  });
+
+  const operations = [...productQuantities.entries()].map(([productId, quantity]) => ({
+    updateOne: {
+      filter: { _id: productId },
+      update: { $inc: { totalSold: quantity } },
+    },
+  }));
+
+  if (operations.length > 0) {
+    await Product.bulkWrite(operations, { ordered: false });
+  }
+};
+
 const buildCheckoutPricing = async ({
   userId,
   address = null,
@@ -1038,6 +1068,8 @@ router.put('/admin/:orderId/status', authMiddleware, adminMiddleware, async (req
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    const shouldRecordSales = status === 'delivered' && !order.salesRecordedAt;
+
     if (status === 'accepted') {
       if (!expectedShippingDate) {
         return res.status(400).json({ message: 'Expected shipping date is required before accepting an order' });
@@ -1077,6 +1109,12 @@ router.put('/admin/:orderId/status', authMiddleware, adminMiddleware, async (req
     }
 
     await order.save();
+
+    if (shouldRecordSales) {
+      await incrementProductSalesForOrder(order);
+      order.salesRecordedAt = new Date();
+      await order.save();
+    }
 
     const updated = await Order.findById(order._id)
       .populate('user', 'email')

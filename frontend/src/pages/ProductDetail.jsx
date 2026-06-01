@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Star, Trash2, AlertCircle, ImagePlus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, Trash2, AlertCircle, ImagePlus, X, Sparkles, Flower2, Heart } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { apiUrl, assetUrl } from '../config/api';
+import ProductRecommendations from '../components/ProductRecommendations';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -18,6 +19,14 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [similarProducts, setSimilarProducts] = useState([]);
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [mostLoved, setMostLoved] = useState([]);
+  const [recommendationLoading, setRecommendationLoading] = useState({
+    similar: true,
+    newArrivals: true,
+    mostLoved: true,
+  });
 
   // Review form state
   const [rating, setRating] = useState(5);
@@ -81,6 +90,98 @@ const ProductDetail = () => {
 
     fetchData();
   }, [id, user, currentUserId]);
+
+  useEffect(() => {
+    if (!product?._id) {
+      return undefined;
+    }
+
+    let isActive = true;
+
+    const fetchRecommendations = async () => {
+      setRecommendationLoading({
+        similar: true,
+        newArrivals: true,
+        mostLoved: true,
+      });
+
+      try {
+        const [similarResult, newArrivalsResult] = await Promise.allSettled([
+          axios.get(apiUrl(`/api/products/similar/${product._id}`), { params: { limit: 8 } }),
+          axios.get(apiUrl('/api/products/new-arrivals'), {
+            params: {
+              exclude: product._id,
+              limit: 8,
+            },
+          }),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        const similarList = similarResult.status === 'fulfilled' && Array.isArray(similarResult.value.data)
+          ? similarResult.value.data
+          : [];
+        const similarIds = new Set([product._id, ...similarList.map((item) => item._id)]);
+
+        const newArrivalListRaw = newArrivalsResult.status === 'fulfilled' && Array.isArray(newArrivalsResult.value.data)
+          ? newArrivalsResult.value.data
+          : [];
+        const filteredNewArrivals = newArrivalListRaw.filter((item) => !similarIds.has(item._id));
+
+        setSimilarProducts(similarList);
+        setNewArrivals(filteredNewArrivals);
+        setRecommendationLoading((prev) => ({
+          ...prev,
+          similar: false,
+          newArrivals: false,
+        }));
+
+        const excludeIds = [...similarIds, ...filteredNewArrivals.map((item) => item._id)];
+
+        try {
+          const mostLovedResult = await axios.get(apiUrl('/api/products/most-loved'), {
+            params: {
+              exclude: excludeIds.join(','),
+              limit: 8,
+            },
+          });
+
+          if (!isActive) {
+            return;
+          }
+
+          setMostLoved(Array.isArray(mostLovedResult.data) ? mostLovedResult.data : []);
+        } catch (error) {
+          if (isActive) {
+            setMostLoved([]);
+          }
+        }
+      } catch (error) {
+        if (isActive) {
+          setSimilarProducts([]);
+          setNewArrivals([]);
+          setMostLoved([]);
+        }
+      } finally {
+        if (isActive) {
+          setRecommendationLoading((prev) => ({
+            ...prev,
+            similar: false,
+            newArrivals: false,
+            mostLoved: false,
+          }));
+        }
+      }
+    };
+
+    fetchRecommendations();
+
+    return () => {
+      isActive = false;
+    };
+  }, [product?._id]);
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -523,6 +624,34 @@ const ProductDetail = () => {
               )}
             </div>
           </div>
+        </div>
+
+        <div className="pt-8 sm:pt-10 lg:pt-12">
+          <ProductRecommendations
+            title="Similar Handmade Creations"
+            icon={Sparkles}
+            products={similarProducts}
+            loading={recommendationLoading.similar}
+            emptyMessage="No similar handmade creations found."
+          />
+
+          <ProductRecommendations
+            title="New Arrivals"
+            icon={Flower2}
+            products={newArrivals}
+            loading={recommendationLoading.newArrivals}
+            emptyMessage=""
+            hideWhenEmpty
+          />
+
+          <ProductRecommendations
+            title="Most Loved By Customers"
+            icon={Heart}
+            products={mostLoved}
+            loading={recommendationLoading.mostLoved}
+            emptyMessage=""
+            hideWhenEmpty
+          />
         </div>
       </div>
     </div>

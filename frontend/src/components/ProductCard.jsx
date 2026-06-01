@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { assetUrl } from '../config/api';
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, actionMode = 'buy' }) => {
   const { addToCart } = useCart();
   const navigate = useNavigate();
   const formatCurrency = (amount) =>
@@ -22,6 +22,10 @@ const ProductCard = ({ product }) => {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const activePhoto = photos[activePhotoIndex] || photos[0] || '';
 
+  const handlePrimaryAction = () => {
+    navigate(`/product/${product._id}`);
+  };
+
   return (
     <div className="card group product-card">
       <div
@@ -32,6 +36,7 @@ const ProductCard = ({ product }) => {
           src={assetUrl(activePhoto)}
           alt={product.name}
           className="w-full h-full object-contain object-center bg-white"
+          loading="lazy"
         />
         <div className="absolute top-3 left-3">
           <span className="product-chip">
@@ -65,19 +70,22 @@ const ProductCard = ({ product }) => {
           <span className="text-2xl font-black text-slate-900 tracking-tight">{formatCurrency(product.price)}</span>
           <div className="flex gap-2">
             <button
-              onClick={() => navigate(`/product/${product._id}`)}
+              onClick={handlePrimaryAction}
               className="btn-secondary inline-flex items-center gap-2 px-3 py-2 rounded-xl"
-              title="View details"
+              title="View product"
             >
               <Eye size={18} />
+              View
             </button>
-            <button
-              onClick={() => addToCart(product._id)}
-              className="btn-primary inline-flex items-center gap-2 px-4 py-2 rounded-xl"
-            >
-              <ShoppingCart size={18} />
-              Add
-            </button>
+            {actionMode !== 'view' && (
+              <button
+                onClick={() => addToCart(product._id)}
+                className="btn-primary inline-flex items-center gap-2 px-4 py-2 rounded-xl"
+              >
+                <ShoppingCart size={18} />
+                Add
+              </button>
+            )}
           </div>
         </div>
       </div>

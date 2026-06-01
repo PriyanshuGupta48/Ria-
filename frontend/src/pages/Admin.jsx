@@ -533,21 +533,61 @@ const Admin = () => {
     return orders.filter((order) => order.status === 'pending');
   }, [orders]);
 
-  const topProducts = useMemo(() => {
+  const productSalesCounts = useMemo(() => {
     const counts = new Map();
 
     orders.forEach((order) => {
+      if (order.status !== 'delivered') {
+        return;
+      }
+
       order.items?.forEach((item) => {
-        const name = item.product?.name || 'Unknown Product';
-        counts.set(name, (counts.get(name) || 0) + item.quantity);
+        const productId = item.product?._id;
+        const quantity = Number(item.quantity || 0);
+
+        if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
+          return;
+        }
+
+        counts.set(productId, (counts.get(productId) || 0) + quantity);
       });
     });
 
-    return Array.from(counts.entries())
-      .map(([name, qty]) => ({ name, qty }))
+    return counts;
+  }, [orders]);
+
+  const productOrderCounts = useMemo(() => {
+    const counts = new Map();
+
+    orders.forEach((order) => {
+      if (order.status !== 'delivered') {
+        return;
+      }
+
+      const seenInOrder = new Set();
+      order.items?.forEach((item) => {
+        const productId = item.product?._id;
+        if (!productId || seenInOrder.has(productId)) {
+          return;
+        }
+
+        seenInOrder.add(productId);
+        counts.set(productId, (counts.get(productId) || 0) + 1);
+      });
+    });
+
+    return counts;
+  }, [orders]);
+
+  const topProducts = useMemo(() => {
+    return [...products]
+      .map((product) => ({
+        name: product.name,
+        qty: productSalesCounts.get(product._id) || Number(product.totalSold || 0),
+      }))
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 5);
-  }, [orders]);
+  }, [products, productSalesCounts]);
 
   const renderOverviewTab = () => (
     <div className="space-y-6">
@@ -921,6 +961,9 @@ const Admin = () => {
                 <p className="text-xs text-rose-600">
                   {product.category} • {getProductImages(product).length} photo
                   {getProductImages(product).length > 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Total sold: {productSalesCounts.get(product._id) || Number(product.totalSold || 0)} • Total orders: {productOrderCounts.get(product._id) || 0}
                 </p>
               </div>
               <button

@@ -212,6 +212,10 @@ const orderSchema = new mongoose.Schema(
         default: null,
       },
     },
+    salesRecordedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
