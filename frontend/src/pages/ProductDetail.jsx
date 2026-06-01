@@ -98,6 +98,31 @@ const ProductDetail = () => {
 
     let isActive = true;
 
+    const buildFallbackRecommendations = (catalogProducts = []) => {
+      const filteredCatalog = catalogProducts.filter((item) => String(item?._id || '') !== String(product._id));
+      const similarList = filteredCatalog
+        .filter((item) => String(item?.category || '') === String(product.category || ''))
+        .sort((a, b) => Number(b.totalSold || 0) - Number(a.totalSold || 0) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 8);
+
+      const similarIds = new Set([product._id, ...similarList.map((item) => item._id)]);
+      const newArrivalsList = filteredCatalog
+        .filter((item) => !similarIds.has(item._id))
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 8);
+
+      const mostLovedList = filteredCatalog
+        .filter((item) => Number(item.totalSold || 0) > 0 && !similarIds.has(item._id))
+        .sort((a, b) => Number(b.totalSold || 0) - Number(a.totalSold || 0) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 8);
+
+      return {
+        similarList,
+        newArrivalsList,
+        mostLovedList,
+      };
+    };
+
     const fetchRecommendations = async () => {
       setRecommendationLoading({
         similar: true,
@@ -129,6 +154,21 @@ const ProductDetail = () => {
           ? newArrivalsResult.value.data
           : [];
         const filteredNewArrivals = newArrivalListRaw.filter((item) => !similarIds.has(item._id));
+
+        const shouldFallbackToCatalog = similarList.length === 0 || newArrivalListRaw.length === 0;
+
+        if (shouldFallbackToCatalog) {
+          const catalogResponse = await axios.get(apiUrl('/api/products'));
+          if (!isActive) {
+            return;
+          }
+
+          const fallback = buildFallbackRecommendations(Array.isArray(catalogResponse.data) ? catalogResponse.data : []);
+          setSimilarProducts(fallback.similarList);
+          setNewArrivals(fallback.newArrivalsList);
+          setMostLoved(fallback.mostLovedList);
+          return;
+        }
 
         setSimilarProducts(similarList);
         setNewArrivals(filteredNewArrivals);
