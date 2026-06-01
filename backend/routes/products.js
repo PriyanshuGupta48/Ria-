@@ -88,6 +88,96 @@ router.get('/new-arrivals', async (req, res) => {
   try {
     const limit = parseLimit(req.query.limit, 8, 8);
     const excludeIds = normalizeExcludeIds(req.query.exclude);
+      router.get('/similar/:productId', async (req, res) => {
+        try {
+          const { productId } = req.params;
+          const limit = parseLimit(req.query.limit, 8, 8);
+
+          if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).json({ message: 'Invalid product id' });
+          }
+
+          const currentProduct = await Product.findById(productId).select('category').lean();
+          if (!currentProduct) {
+            return res.status(404).json({ message: 'Product not found' });
+          }
+
+          const excludeIds = normalizeExcludeIds(req.query.exclude);
+          const products = await Product.find({
+            category: currentProduct.category,
+            _id: { $nin: [productId, ...excludeIds] },
+          })
+            .sort({ totalSold: -1, createdAt: -1 })
+            .limit(limit)
+            .select(PRODUCT_PUBLIC_FIELDS)
+            .lean();
+
+          res.json(products.map(toProductResponse));
+        } catch (error) {
+          res.status(500).json({ message: 'Server error' });
+        }
+      });
+
+      router.get('/new-arrivals', async (req, res) => {
+        try {
+          const limit = parseLimit(req.query.limit, 8, 8);
+          const excludeIds = normalizeExcludeIds(req.query.exclude);
+          const query = excludeIds.length > 0 ? { _id: { $nin: excludeIds } } : {};
+
+          const products = await Product.find(query)
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .select(PRODUCT_PUBLIC_FIELDS)
+            .lean();
+
+          res.json(products.map(toProductResponse));
+        } catch (error) {
+          res.status(500).json({ message: 'Server error' });
+        }
+      });
+
+      router.get('/most-loved', async (req, res) => {
+        try {
+          const limit = parseLimit(req.query.limit, 8, 8);
+          const excludeIds = normalizeExcludeIds(req.query.exclude);
+
+          const salesStats = await getDeliveredProductSalesStats();
+          const rankedStats = salesStats
+            .map((entry) => ({
+              productId: String(entry._id),
+              totalSold: Number(entry.totalSold || 0),
+            }))
+            .filter((entry) => entry.totalSold > 0 && !excludeIds.includes(entry.productId))
+            .slice(0, limit);
+
+          if (rankedStats.length === 0) {
+            return res.json([]);
+          }
+
+          const products = await Product.find({ _id: { $in: rankedStats.map((entry) => entry.productId) } })
+            .select(PRODUCT_PUBLIC_FIELDS)
+            .lean();
+
+          const productMap = new Map(products.map((product) => [String(product._id), product]));
+          const response = rankedStats
+            .map((entry) => {
+              const product = productMap.get(entry.productId);
+              if (!product) {
+                return null;
+              }
+
+              return {
+                ...product,
+                totalSold: entry.totalSold,
+              };
+            })
+            .filter(Boolean);
+
+          res.json(response.map(toProductResponse));
+        } catch (error) {
+          res.status(500).json({ message: 'Server error' });
+        }
+      });
     const query = excludeIds.length > 0 ? { _id: { $nin: excludeIds } } : {};
 
     const products = await Product.find(query)
