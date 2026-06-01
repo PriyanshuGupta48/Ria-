@@ -234,10 +234,15 @@ router.get('/most-loved', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+const RESERVED_PRODUCT_SLUGS = new Set(['new-arrivals', 'most-loved']);
 
 // Get single product
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
+    if (RESERVED_PRODUCT_SLUGS.has(String(req.params.id || '').toLowerCase())) {
+      return next();
+    }
+
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
